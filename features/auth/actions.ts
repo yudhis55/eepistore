@@ -3,6 +3,7 @@
 import argon2 from "argon2";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validators/auth";
+import { registerLimiter } from "@/lib/rate-limit";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
 
@@ -15,6 +16,12 @@ export async function registerAction(
   _prev: RegisterState,
   formData: FormData,
 ): Promise<RegisterState> {
+  const emailRaw = String(formData.get("email") ?? "");
+
+  if (!registerLimiter.check(emailRaw || "anon")) {
+    return { error: "Terlalu banyak percobaan registrasi. Coba lagi nanti." };
+  }
+
   const parsed = registerSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),

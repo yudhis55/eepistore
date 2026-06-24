@@ -1,8 +1,19 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createPresignedUploadUrl } from "@/lib/storage";
+import { uploadLimiter } from "@/lib/rate-limit";
+import { auth } from "@/auth";
 
 export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!uploadLimiter.check(session.user.id)) {
+    return NextResponse.json({ error: "Rate limit exceeded. Coba lagi nanti." }, { status: 429 });
+  }
+
   try {
     const body = await request.json();
 
@@ -15,13 +26,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: replace with actual authenticated user ID from session
-    const userId = "dev-user";
-
     const result = await createPresignedUploadUrl(
       { filename, contentType, folder: folder ?? "products" },
       Number(fileSize),
-      userId,
+      session.user.id,
     );
 
     return NextResponse.json(result);

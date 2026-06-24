@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/rbac";
+import { checkoutLimiter } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 
 export type CheckoutResult = {
@@ -15,6 +16,10 @@ export async function checkoutAction(
   formData: FormData,
 ): Promise<CheckoutResult> {
   const session = await requireAuth();
+
+  if (!checkoutLimiter.check(session.user.id)) {
+    return { success: false, error: "Terlalu banyak checkout. Coba lagi nanti." };
+  }
 
   const deliveryMethod = formData.get("deliveryMethod") as string;
   const paymentMethod = formData.get("paymentMethod") as string;
