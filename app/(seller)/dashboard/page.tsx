@@ -71,12 +71,20 @@ export default async function SellerDashboardPage() {
           <h1 className="text-2xl font-bold text-brand-navy-900">{store.storeName}</h1>
           <p className="text-sm text-neutral-500">{products.length} produk</p>
         </div>
-        <Link
-          href="/dashboard/products/new"
-          className="rounded-lg bg-brand-navy-900 px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-navy-700"
-        >
-          + Tambah Produk
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/dashboard/orders"
+            className="rounded-lg border border-border px-4 py-2.5 font-medium text-brand-navy-900 transition-colors hover:bg-neutral-100"
+          >
+            Pesanan Masuk
+          </Link>
+          <Link
+            href="/dashboard/products/new"
+            className="rounded-lg bg-brand-navy-900 px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-navy-700"
+          >
+            + Tambah Produk
+          </Link>
+        </div>
       </div>
 
       {products.length === 0 ? (
