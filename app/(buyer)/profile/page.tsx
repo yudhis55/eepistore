@@ -1,6 +1,7 @@
 import { getMyProfile, getMyAddresses } from "@/features/profile/actions";
 import { ProfileForm } from "@/components/profile-form";
 import { AddressManager } from "@/components/address-manager";
+import { VerificationForm } from "@/components/verification-form";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -62,6 +63,23 @@ export default async function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Student verification */}
+      {!profile.isVerifiedStudent && (
+        <div className="mt-6 rounded-lg border border-brand-gold-500/30 bg-brand-gold-500/5 p-4">
+          <h2 className="mb-2 text-sm font-semibold text-brand-navy-900">Verified Student Badge</h2>
+          {profile.verificationStatus === "PENDING" ? (
+            <p className="text-sm text-neutral-500">
+              Pengajuan verifikasi Anda sedang dalam review Admin.
+            </p>
+          ) : profile.verificationStatus === "REJECTED" ? (
+            <p className="text-sm text-danger">
+              Pengajuan verifikasi ditolak. Anda dapat mengajukan ulang.
+            </p>
+          ) : null}
+          {profile.verificationStatus !== "PENDING" && <VerificationForm />}
+        </div>
+      )}
     </main>
   );
 }

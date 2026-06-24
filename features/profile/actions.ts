@@ -115,6 +115,7 @@ export async function getMyProfile() {
       avatarUrl: true,
       role: true,
       isVerifiedStudent: true,
+      verificationStatus: true,
       nim: true,
       createdAt: true,
     },

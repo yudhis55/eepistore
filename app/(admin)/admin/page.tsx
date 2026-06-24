@@ -88,6 +88,12 @@ export default async function AdminDashboardPage() {
           Kelola Toko
         </Link>
         <Link
+          href="/admin/verifications"
+          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
+        >
+          Verifikasi Student
+        </Link>
+        <Link
           href="/admin/categories"
           className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
         >

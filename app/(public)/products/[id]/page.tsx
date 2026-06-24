@@ -1,5 +1,6 @@
 import { getProductById } from "@/features/catalog/queries";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { WishlistButton } from "@/components/wishlist-button";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -147,7 +148,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             </div>
           </Link>
 
-          <AddToCartButton productId={product.id} stock={product.stock} />
+          <div className="flex gap-2">
+            <AddToCartButton productId={product.id} stock={product.stock} />
+            <WishlistButton productId={product.id} initialWishlisted={false} />
+          </div>
         </div>
       </div>
 

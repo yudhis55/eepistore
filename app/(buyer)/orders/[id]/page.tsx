@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/rbac";
 import { notFound } from "next/navigation";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { BuyerOrderActions } from "@/components/buyer-order-actions";
+import { ReviewForm } from "@/components/review-form";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
@@ -144,6 +145,24 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <p className="text-sm text-danger">
                 <strong>Dibatalkan:</strong> {order.cancelReason}
               </p>
+            </div>
+          )}
+
+          {/* Review section for completed orders */}
+          {order.status === "SELESAI" && (
+            <div className="rounded-lg border border-border p-4">
+              <h2 className="mb-3 text-sm font-semibold">Beri Review</h2>
+              <div className="space-y-4">
+                {order.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="border-t border-border pt-3 first:border-0 first:pt-0"
+                  >
+                    <p className="mb-2 text-sm font-medium">{item.product.name}</p>
+                    <ReviewForm orderItemId={item.id} />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
