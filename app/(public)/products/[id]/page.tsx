@@ -1,4 +1,5 @@
 import { getProductById } from "@/features/catalog/queries";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -146,7 +147,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             </div>
           </Link>
 
-          {/* TODO: Add to cart button (Fase 1.2) */}
+          <AddToCartButton productId={product.id} stock={product.stock} />
         </div>
       </div>
 
