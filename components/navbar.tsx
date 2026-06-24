@@ -29,6 +29,14 @@ export function Navbar() {
                 Keranjang
               </Link>
 
+              <Link href="/chat" className="text-neutral-500 hover:text-brand-navy-900">
+                Pesan
+              </Link>
+
+              <Link href="/notifications" className="text-neutral-500 hover:text-brand-navy-900">
+                Notifikasi
+              </Link>
+
               {session.user.role === "SELLER" || session.user.role === "ADMIN" ? (
                 <Link
                   href="/dashboard"
