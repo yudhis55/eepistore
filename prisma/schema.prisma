@@ -42,6 +42,7 @@ enum OrderStatus {
 enum PaymentMethod {
   MANUAL_TRANSFER
   COD
+  GATEWAY
 }
 
 enum PaymentStatus {
@@ -378,4 +379,53 @@ model AuditLog {
 
   @@index([actorId])
   @@index([action])
+}
+
+// ─── Voucher (Fase 3) ───
+
+enum DiscountType {
+  PERCENTAGE
+  NOMINAL
+}
+
+model Voucher {
+  id              String       @id @default(cuid())
+  code            String       @unique
+  description     String?
+  discountType    DiscountType
+  value           Decimal      @db.Decimal(12, 2)
+  minPurchase     Decimal      @default(0) @db.Decimal(12, 2)
+  maxDiscount     Decimal?     @db.Decimal(12, 2)
+  quota           Int          @default(0)
+  usedCount       Int          @default(0)
+  validFrom       DateTime
+  validUntil      DateTime
+  isActive        Boolean      @default(true)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([isActive])
+  @@index([validFrom])
+  @@index([validUntil])
+}
+
+// ─── Banner (Fase 3) ───
+
+model Banner {
+  id          String   @id @default(cuid())
+  title       String
+  imageUrl    String
+  linkUrl     String?
+  description String?
+  position    Int      @default(0)
+  isActive    Boolean  @default(true)
+  validFrom   DateTime?
+  validUntil  DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([position])
 }

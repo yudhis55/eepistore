@@ -117,6 +117,24 @@ export default async function AdminDashboardPage() {
         >
           Kelola User
         </Link>
+        <Link
+          href="/admin/vouchers"
+          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
+        >
+          Voucher
+        </Link>
+        <Link
+          href="/admin/banners"
+          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
+        >
+          Banner
+        </Link>
+        <Link
+          href="/admin/reports"
+          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
+        >
+          Laporan
+        </Link>
       </div>
 
       {/* Recent orders */}

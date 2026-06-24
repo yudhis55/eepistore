@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { getProducts, getCategoriesTree } from "@/features/catalog/queries";
+import { getActiveBanners } from "@/features/banner/actions";
 import { ProductCard } from "@/components/product-card";
 
 export default async function HomePage() {
-  const [{ products }, categories] = await Promise.all([
+  const [{ products }, categories, banners] = await Promise.all([
     getProducts({ perPage: 8, sortBy: "newest" }),
     getCategoriesTree(),
+    getActiveBanners(),
   ]);
 
   return (
@@ -21,6 +23,35 @@ export default async function HomePage() {
           Mulai Belanja
         </Link>
       </section>
+
+      {/* Banners */}
+      {banners.length > 0 && (
+        <section className="container mx-auto px-4 py-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {banners.map((banner) => (
+              <div key={banner.id} className="relative overflow-hidden rounded-lg">
+                {banner.linkUrl ? (
+                  <a href={banner.linkUrl}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={banner.imageUrl}
+                      alt={banner.title}
+                      className="h-32 w-full object-cover sm:h-40"
+                    />
+                  </a>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={banner.imageUrl}
+                    alt={banner.title}
+                    className="h-32 w-full object-cover sm:h-40"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Categories */}
       {categories.length > 0 && (
