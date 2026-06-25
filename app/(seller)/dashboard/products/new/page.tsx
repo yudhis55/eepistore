@@ -1,18 +1,31 @@
+import type { Metadata } from "next";
 import { getAllCategories } from "@/features/catalog/actions";
 import { ProductForm } from "@/components/product-form";
-import type { Metadata } from "next";
+import { PageHeader, Breadcrumb } from "@/components/ui/page-header";
 
-export const metadata: Metadata = {
-  title: "Tambah Produk — EEPISTORE",
-};
+export const metadata: Metadata = { title: "Tambah Produk — EEPISTORE" };
 
 export default async function NewProductPage() {
   const categories = await getAllCategories();
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">Tambah Produk</h1>
-      <ProductForm categories={categories} />
-    </main>
+    <>
+      <PageHeader
+        title="Tambah Produk"
+        description="Lengkapi detail produk Anda. Produk akan langsung tampil di katalog setelah disimpan."
+        breadcrumb={
+          <Breadcrumb
+            items={[
+              { label: "Dashboard", href: "/dashboard" },
+              { label: "Produk", href: "/dashboard/products/new" },
+              { label: "Tambah" },
+            ]}
+          />
+        }
+      />
+      <div className="mx-auto max-w-2xl">
+        <ProductForm categories={categories} />
+      </div>
+    </>
   );
 }

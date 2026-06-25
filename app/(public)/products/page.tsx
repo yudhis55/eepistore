@@ -1,11 +1,20 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { getProducts, getCategoriesTree, type ProductFilter } from "@/features/catalog/queries";
 import { ProductCard } from "@/components/product-card";
 import { CategoryFilter } from "@/components/category-filter";
-import { SearchBar } from "@/components/search-bar";
-import type { Metadata } from "next";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SortSelect } from "@/components/sort-select";
+import { cn } from "@/lib/cn";
 
-export const metadata: Metadata = {
-  title: "Produk — EEPISTORE",
+export const metadata: Metadata = { title: "Produk — EEPISTORE" };
+
+const SORT_LABEL: Record<string, string> = {
+  newest: "Terbaru",
+  cheapest: "Termurah",
+  most_expensive: "Termahal",
+  popular: "Terlaris",
 };
 
 export default async function ProductsPage({
@@ -29,29 +38,118 @@ export default async function ProductsPage({
     getCategoriesTree(),
   ]);
 
-  return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-brand-navy-900">Katalog Produk</h1>
-        <p className="mt-1 text-sm text-neutral-500">{total} produk ditemukan</p>
-      </div>
+  // Build the href that drops ONE query param (for active-filter chips).
+  const withoutParam = (key: string) => {
+    const next = new URLSearchParams();
+    for (const [k, v] of Object.entries({
+      ...(filter.search ? { q: filter.search } : {}),
+      ...(filter.categoryId ? { cat: filter.categoryId } : {}),
+      ...(filter.condition ? { cond: filter.condition } : {}),
+      ...(filter.minPrice ? { min: String(filter.minPrice) } : {}),
+      ...(filter.maxPrice ? { max: String(filter.maxPrice) } : {}),
+      ...(filter.sortBy && filter.sortBy !== "newest" ? { sort: filter.sortBy } : {}),
+    })) {
+      if (k !== key) next.set(k, v);
+    }
+    const qs = next.toString();
+    return qs ? `/products?${qs}` : "/products";
+  };
 
-      <div className="mb-6">
-        <SearchBar />
-      </div>
+  const activeChips: { key: string; label: string }[] = [];
+  if (filter.search) activeChips.push({ key: "q", label: `“${filter.search}”` });
+  if (filter.categoryId) {
+    const cat = categories.find((c) => c.id === filter.categoryId);
+    activeChips.push({ key: "cat", label: cat?.name ?? "Kategori" });
+  }
+  if (filter.condition)
+    activeChips.push({ key: "cond", label: filter.condition === "NEW" ? "Baru" : "Preloved" });
+  if (filter.minPrice !== undefined || filter.maxPrice !== undefined) {
+    activeChips.push({
+      key: "price",
+      label: `${filter.minPrice ?? 0}–${filter.maxPrice ?? "∞"}`,
+    });
+  }
+
+  const pageHref = (p: number) => {
+    const qs = new URLSearchParams({
+      ...(filter.search ? { q: filter.search } : {}),
+      ...(filter.categoryId ? { cat: filter.categoryId } : {}),
+      ...(filter.condition ? { cond: filter.condition } : {}),
+      ...(filter.sortBy && filter.sortBy !== "newest" ? { sort: filter.sortBy } : {}),
+      page: String(p),
+    });
+    return `?${qs.toString()}`;
+  };
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <PageHeader title="Katalog Produk" description={`${total} produk ditemukan`} />
 
       <div className="flex gap-6">
-        <aside className="hidden w-56 shrink-0 md:block">
-          <CategoryFilter categories={categories} />
+        {/* Filter sidebar — sticky, desktop only (mobile filters via category page links). */}
+        <aside className="hidden w-60 shrink-0 md:block">
+          <div className="sticky top-20">
+            <CategoryFilter categories={categories} />
+          </div>
         </aside>
 
-        <div className="flex-1">
-          {products.length === 0 ? (
-            <div className="rounded-lg border border-border bg-neutral-100 p-12 text-center">
-              <p className="text-neutral-500">Belum ada produk yang matching.</p>
+        <div className="min-w-0 flex-1">
+          {/* Toolbar: sort + active chips */}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {activeChips.length === 0 ? (
+                <span className="text-sm text-neutral-500">Semua produk</span>
+              ) : (
+                activeChips.map((chip) => (
+                  <Link
+                    key={chip.key}
+                    href={withoutParam(chip.key === "price" ? "min" : chip.key)}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:border-brand-navy-700 hover:bg-neutral-50"
+                  >
+                    {chip.label}
+                    <svg
+                      className="h-3 w-3 text-neutral-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                    >
+                      <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                    <span className="sr-only">Hapus filter {chip.label}</span>
+                  </Link>
+                ))
+              )}
+              {activeChips.length > 1 && (
+                <Link
+                  href="/products"
+                  className="text-xs font-medium text-brand-navy-700 hover:underline"
+                >
+                  Reset semua
+                </Link>
+              )}
             </div>
+
+            <SortSelect current={filter.sortBy ?? "newest"} labels={SORT_LABEL} />
+          </div>
+
+          {products.length === 0 ? (
+            <EmptyState
+              icon={<SearchGlyph />}
+              title="Tidak ada produk yang cocok"
+              description="Coba ubah filter atau kata kunci pencarian untuk melihat produk lain."
+              action={
+                <Link
+                  href="/products"
+                  className="inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-5 py-2.5 text-sm font-medium text-brand-navy-900 transition-colors hover:bg-neutral-100"
+                >
+                  Reset filter
+                </Link>
+              }
+            />
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {products.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -67,29 +165,45 @@ export default async function ProductsPage({
           )}
 
           {totalPages > 1 && (
-            <div className="mt-8 flex justify-center gap-2">
+            <nav className="mt-8 flex flex-wrap justify-center gap-2" aria-label="Pagination">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <a
+                <Link
                   key={p}
-                  href={`?${new URLSearchParams({
-                    ...(filter.search ? { q: filter.search } : {}),
-                    ...(filter.categoryId ? { cat: filter.categoryId } : {}),
-                    ...(filter.condition ? { cond: filter.condition } : {}),
-                    page: String(p),
-                  })}`}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  href={pageHref(p)}
+                  aria-current={p === page ? "page" : undefined}
+                  className={cn(
+                    "inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-navy-700",
                     p === page
                       ? "bg-brand-navy-900 text-white"
-                      : "border border-border hover:bg-neutral-100"
-                  }`}
+                      : "border border-border bg-surface text-neutral-700 hover:bg-neutral-100",
+                  )}
                 >
                   {p}
-                </a>
+                </Link>
               ))}
-            </div>
+            </nav>
           )}
         </div>
       </div>
-    </main>
+    </div>
+  );
+}
+
+function SearchGlyph() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"
+      />
+    </svg>
   );
 }

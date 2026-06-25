@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: eepistore
       POSTGRES_DB: eepistore
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -25,6 +25,10 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+      # Allow the browser (origin :3000) to PUT uploads directly to MinIO via
+      # presigned URLs. MinIO modern handles CORS at the server level, not via
+      # the (removed) PutBucketCors bucket API.
+      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:3000,http://127.0.0.1:3000"
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -44,10 +48,15 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin;
+      set -e;
+      export MC_HOST_local='http://minioadmin:minioadmin@minio:9000';
+      for i in $(seq 1 15); do
+        mc ready local 2>/dev/null && break;
+        echo 'waiting for minio...'; sleep 1;
+      done;
       mc mb local/eepistore --ignore-existing;
       mc anonymous set download local/eepistore;
-      echo 'MinIO bucket eepistore created';
+      echo 'MinIO bucket eepistore created + public-read';
       "
     restart: "no"
 

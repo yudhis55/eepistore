@@ -28,6 +28,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.amazonaws.com",
       },
+      {
+        // Seed/demo product imagery (remove when product photos come from S3 only).
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
     ],
   },
   async headers() {

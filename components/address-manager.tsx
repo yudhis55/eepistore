@@ -51,7 +51,7 @@ export function AddressManager({ addresses }: { addresses: Address[] }) {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">{addr.label}</span>
                 {addr.isDefault && (
-                  <span className="rounded bg-brand-gold-500/20 px-1.5 py-0.5 text-xs text-brand-gold-500">
+                  <span className="rounded bg-brand-gold-500/20 px-1.5 py-0.5 text-xs font-medium text-amber-900">
                     Utama
                   </span>
                 )}

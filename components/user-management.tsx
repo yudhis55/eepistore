@@ -54,8 +54,8 @@ export function UserManagement({ users }: { users: User[] }) {
                   user.role === "ADMIN"
                     ? "bg-brand-navy-900 text-white"
                     : user.role === "SELLER"
-                      ? "bg-brand-gold-500/20 text-brand-gold-500"
-                      : "bg-neutral-100 text-neutral-500"
+                      ? "bg-brand-gold-500/20 text-amber-900"
+                      : "bg-neutral-100 text-neutral-900"
                 }`}
               >
                 {user.role}

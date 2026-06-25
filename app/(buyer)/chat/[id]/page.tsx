@@ -1,7 +1,7 @@
 import { getMessages } from "@/features/chat/actions";
 import { notFound } from "next/navigation";
 import { ChatWindow } from "@/components/chat-window";
-import Link from "next/link";
+import { PageHeader, Breadcrumb } from "@/components/ui/page-header";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -19,16 +19,24 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <Link href="/chat" className="mb-4 inline-block text-sm text-neutral-500 hover:underline">
-        ← Kembali ke Pesan
-      </Link>
+    <>
+      <PageHeader
+        title={data.conversation.store.storeName}
+        breadcrumb={
+          <Breadcrumb
+            items={[
+              { label: "Pesan", href: "/chat" },
+              { label: data.conversation.store.storeName },
+            ]}
+          />
+        }
+      />
       <ChatWindow
         conversationId={data.conversation.id}
         storeName={data.conversation.store.storeName}
         messages={data.messages}
         currentUserId={data.currentUserId}
       />
-    </main>
+    </>
   );
 }

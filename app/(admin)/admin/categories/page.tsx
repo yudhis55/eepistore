@@ -1,6 +1,8 @@
 import { getAllCategories } from "@/features/catalog/actions";
 import { CategoryManager } from "@/components/category-manager";
 import { CategoryForm } from "@/components/category-form";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -11,20 +13,31 @@ export default async function AdminCategoriesPage() {
   const categories = await getAllCategories();
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">Kelola Kategori</h1>
+    <>
+      <PageHeader
+        title="Kelola Kategori"
+        description={`Susun taksonomi katalog produk · ${categories.length} kategori`}
+      />
 
-      <div className="grid gap-8 md:grid-cols-2">
-        <div>
-          <h2 className="mb-3 text-sm font-semibold">Tambah Kategori</h2>
-          <CategoryForm categories={categories} />
-        </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-brand-navy-900">Tambah Kategori</h2>
+          </CardHeader>
+          <CardBody>
+            <CategoryForm categories={categories} />
+          </CardBody>
+        </Card>
 
-        <div>
-          <h2 className="mb-3 text-sm font-semibold">Daftar Kategori</h2>
-          <CategoryManager categories={categories} />
-        </div>
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-brand-navy-900">Daftar Kategori</h2>
+          </CardHeader>
+          <CardBody>
+            <CategoryManager categories={categories} />
+          </CardBody>
+        </Card>
       </div>
-    </main>
+    </>
   );
 }

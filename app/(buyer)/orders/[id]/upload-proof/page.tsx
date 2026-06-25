@@ -2,6 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/rbac";
 import { notFound } from "next/navigation";
 import { UploadProofForm } from "@/components/upload-proof-form";
+import { PageHeader, Breadcrumb } from "@/components/ui/page-header";
+import { Card, CardBody } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonVariants } from "@/components/ui/button";
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -24,21 +29,54 @@ export default async function UploadProofPage({ params }: { params: Promise<{ id
 
   if (order.status !== "MENUNGGU_PEMBAYARAN") {
     return (
-      <main className="container mx-auto px-4 py-8">
-        <p className="text-neutral-500">Pesanan ini tidak memerlukan upload bukti pembayaran.</p>
-      </main>
+      <>
+        <PageHeader
+          title="Upload Bukti Pembayaran"
+          breadcrumb={
+            <Breadcrumb
+              items={[
+                { label: "Pesanan Saya", href: "/orders" },
+                { label: `#${order.id.slice(-8)}`, href: `/orders/${order.id}` },
+                { label: "Upload Bukti" },
+              ]}
+            />
+          }
+        />
+        <EmptyState
+          title="Tidak perlu upload bukti"
+          description="Pesanan ini tidak memerlukan upload bukti pembayaran."
+          action={
+            <Link className={buttonVariants({ variant: "secondary" })} href={`/orders/${order.id}`}>
+              Kembali ke Pesanan
+            </Link>
+          }
+        />
+      </>
     );
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
+    <>
+      <PageHeader
+        title="Upload Bukti Pembayaran"
+        description={`Order #${order.id.slice(-8)} — ${order.store.storeName}`}
+        breadcrumb={
+          <Breadcrumb
+            items={[
+              { label: "Pesanan Saya", href: "/orders" },
+              { label: `#${order.id.slice(-8)}`, href: `/orders/${order.id}` },
+              { label: "Upload Bukti" },
+            ]}
+          />
+        }
+      />
       <div className="mx-auto max-w-md">
-        <h1 className="mb-2 text-2xl font-bold text-brand-navy-900">Upload Bukti Pembayaran</h1>
-        <p className="mb-6 text-sm text-neutral-500">
-          Order #{order.id.slice(-8)} — {order.store.storeName}
-        </p>
-        <UploadProofForm orderId={order.id} paymentId={order.payment?.id} />
+        <Card>
+          <CardBody>
+            <UploadProofForm orderId={order.id} paymentId={order.payment?.id} />
+          </CardBody>
+        </Card>
       </div>
-    </main>
+    </>
   );
 }

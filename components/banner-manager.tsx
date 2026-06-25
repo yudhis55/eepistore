@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { deleteBannerAction, toggleBannerAction } from "@/features/banner/actions";
 
 type Banner = {

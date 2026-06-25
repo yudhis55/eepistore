@@ -2,59 +2,92 @@
 
 import { useActionState, useState } from "react";
 import { createReviewAction, type ReviewActionState } from "@/features/review/actions";
+import { Textarea, FormField } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 
 export function ReviewForm({ orderItemId }: { orderItemId: string }) {
   const [state, formAction, pending] = useActionState<ReviewActionState, FormData>(
     createReviewAction,
     {},
   );
-
   const [rating, setRating] = useState(5);
+  const [hover, setHover] = useState(0);
 
   return (
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="orderItemId" value={orderItemId} />
+      <input type="hidden" name="rating" value={rating} />
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Rating</label>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              type="button"
-              onClick={() => setRating(star)}
-              className={`text-2xl ${star <= rating ? "text-brand-gold-500" : "text-neutral-500"}`}
-            >
-              ★
-            </button>
-          ))}
+      <fieldset>
+        <legend className="mb-1.5 block text-sm font-medium text-foreground">Rating</legend>
+        <div className="flex gap-1" role="radiogroup" aria-label="Rating bintang">
+          {[1, 2, 3, 4, 5].map((star) => {
+            const active = star <= (hover || rating);
+            return (
+              <button
+                key={star}
+                type="button"
+                role="radio"
+                aria-checked={rating === star}
+                aria-label={`${star} bintang`}
+                onClick={() => setRating(star)}
+                onMouseEnter={() => setHover(star)}
+                onMouseLeave={() => setHover(0)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md text-brand-gold-500 transition-transform hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-navy-700"
+              >
+                <Star
+                  className={cn("h-6 w-6", active ? "text-brand-gold-500" : "text-neutral-300")}
+                  filled={active}
+                />
+              </button>
+            );
+          })}
         </div>
-        <input type="hidden" name="rating" value={rating} />
-      </div>
+      </fieldset>
 
-      <div>
-        <label htmlFor="comment" className="mb-1 block text-sm font-medium">
-          Komentar (opsional)
-        </label>
-        <textarea
+      <FormField label="Komentar (opsional)" htmlFor="comment">
+        <Textarea
           id="comment"
           name="comment"
-          rows={2}
+          rows={3}
           maxLength={1000}
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-navy-700"
+          placeholder="Bagikan pengalaman belanja Anda…"
         />
-      </div>
+      </FormField>
 
-      {state.error && <p className="text-sm text-danger">{state.error}</p>}
-      {state.success && <p className="text-sm text-success">Review terkirim!</p>}
+      {state.error && (
+        <p
+          role="alert"
+          className="rounded-md bg-danger/10 px-3 py-2 text-sm font-medium text-danger"
+        >
+          {state.error}
+        </p>
+      )}
+      {state.success && (
+        <p className="rounded-md bg-success/10 px-3 py-2 text-sm text-success">
+          Review terkirim. Terima kasih!
+        </p>
+      )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg bg-brand-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-brand-navy-700 disabled:opacity-50"
-      >
-        {pending ? "Mengirim..." : "Kirim Review"}
-      </button>
+      <Button type="submit" loading={pending} disabled={pending}>
+        Kirim Review
+      </Button>
     </form>
+  );
+}
+
+function Star({ className, filled }: { className?: string; filled: boolean }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={filled ? 0 : 1.5}
+      aria-hidden
+    >
+      <path d="M12 2l2.9 6.26L21.8 9.27l-5 4.87 1.18 6.88L12 17.77l-6.98 3.25L6.2 14.14l-5-4.87 6.9-1.01L12 2z" />
+    </svg>
   );
 }

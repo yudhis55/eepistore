@@ -144,3 +144,39 @@ export async function getCategoriesTree() {
 
   return categories;
 }
+
+/**
+ * Trending products — ranked by review count (social proof of demand), falling
+ * back to recency when there are no reviews yet. Active products only, with
+ * first image + store name for the card.
+ */
+export async function getTrendingProducts(limit = 8) {
+  const products = await prisma.product.findMany({
+    where: { status: "ACTIVE" },
+    include: {
+      images: { orderBy: { position: "asc" }, take: 1 },
+      store: { select: { id: true, storeName: true } },
+      _count: { select: { reviews: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit * 2, // over-fetch then sort by review count in JS
+  });
+
+  return products.sort((a, b) => b._count.reviews - a._count.reviews).slice(0, limit);
+}
+
+/**
+ * Recent buyer reviews — social proof for the landing page. Only reviews with a
+ * comment, newest first, with the reviewer name + product for context.
+ */
+export async function getRecentReviews(limit = 3) {
+  return prisma.review.findMany({
+    where: { comment: { not: null } },
+    take: limit,
+    orderBy: { createdAt: "desc" },
+    include: {
+      user: { select: { name: true } },
+      product: { select: { id: true, name: true } },
+    },
+  });
+}

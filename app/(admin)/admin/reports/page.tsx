@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/rbac";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { Table, THead, TBody, TR, TH, TD, TableWrapper } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -12,6 +16,17 @@ const formatPrice = (price: number) =>
     currency: "IDR",
     minimumFractionDigits: 0,
   }).format(price);
+
+const orderStatusTone: Record<string, "neutral" | "success" | "warning" | "danger" | "gold"> = {
+  SELESAI: "success",
+  DIKIRIM: "neutral",
+  DIPROSES: "warning",
+  DIBAYAR: "neutral",
+  DIBATALKAN: "danger",
+  PENDING: "warning",
+};
+
+const statusLabel = (status: string) => status.replace(/_/g, " ");
 
 export default async function AdminReportsPage() {
   await requireRole("ADMIN");
@@ -57,92 +72,100 @@ export default async function AdminReportsPage() {
   });
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">Laporan & Analitik</h1>
+    <>
+      <PageHeader
+        title="Laporan & Analitik"
+        description="Ringkasan GMV, status pesanan, dan performa penjual."
+      />
 
       {/* GMV + Order Stats */}
       <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div className="rounded-lg border border-border p-4">
-          <p className="text-xs text-neutral-500">GMV</p>
-          <p className="mt-1 text-xl font-bold text-brand-navy-900">{formatPrice(gmv)}</p>
-        </div>
+        <StatCard label="GMV" value={formatPrice(gmv)} tone="gold" />
         {orderStats.map((stat) => (
-          <div key={stat.status} className="rounded-lg border border-border p-4">
-            <p className="text-xs text-neutral-500">{stat.status.replace(/_/g, " ")}</p>
-            <p className="mt-1 text-xl font-bold text-brand-navy-900">{stat._count}</p>
-          </div>
+          <StatCard
+            key={stat.status}
+            label={statusLabel(stat.status)}
+            value={String(stat._count)}
+            tone={orderStatusTone[stat.status] ?? "neutral"}
+          />
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top Sellers */}
         <div>
-          <h2 className="mb-3 text-sm font-semibold">Seller Teraktif</h2>
-          <div className="overflow-hidden rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-100 text-left text-neutral-500">
-                <tr>
-                  <th className="px-4 py-2">Toko</th>
-                  <th className="px-4 py-2">Order</th>
-                  <th className="px-4 py-2">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sellerStats.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-4 text-center text-neutral-500">
-                      Belum ada data.
-                    </td>
-                  </tr>
-                ) : (
-                  sellerStats.map((s, i) => (
-                    <tr key={s.id} className="border-t border-border">
-                      <td className="px-4 py-2 font-medium">
-                        {i + 1}. {s.name}
-                      </td>
-                      <td className="px-4 py-2 text-neutral-500">{s.orderCount}</td>
-                      <td className="px-4 py-2 font-medium">{formatPrice(s.revenue)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <h2 className="mb-3 text-sm font-semibold text-brand-navy-900">Seller Teraktif</h2>
+          {sellerStats.length === 0 ? (
+            <EmptyState
+              title="Belum ada data seller"
+              description="Belum ada transaksi untuk menentukan seller teraktif."
+            />
+          ) : (
+            <TableWrapper>
+              <div className="overflow-x-auto">
+                <Table>
+                  <THead>
+                    <TR>
+                      <TH>Toko</TH>
+                      <TH className="text-right">Order</TH>
+                      <TH className="text-right">Revenue</TH>
+                    </TR>
+                  </THead>
+                  <TBody>
+                    {sellerStats.map((s, i) => (
+                      <TR key={s.id}>
+                        <TD className="font-medium text-brand-navy-900">
+                          <span className="font-mono tabular-nums text-neutral-400">{i + 1}.</span>{" "}
+                          {s.name}
+                        </TD>
+                        <TD className="text-right font-mono tabular-nums">{s.orderCount}</TD>
+                        <TD className="text-right font-mono font-medium tabular-nums">
+                          {formatPrice(s.revenue)}
+                        </TD>
+                      </TR>
+                    ))}
+                  </TBody>
+                </Table>
+              </div>
+            </TableWrapper>
+          )}
         </div>
 
         {/* Top Categories */}
         <div>
-          <h2 className="mb-3 text-sm font-semibold">Kategori Terlaris</h2>
-          <div className="overflow-hidden rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-100 text-left text-neutral-500">
-                <tr>
-                  <th className="px-4 py-2">Kategori</th>
-                  <th className="px-4 py-2">Produk</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topCategories.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="px-4 py-4 text-center text-neutral-500">
-                      Belum ada data.
-                    </td>
-                  </tr>
-                ) : (
-                  topCategories.map((c, i) => (
-                    <tr key={c.id} className="border-t border-border">
-                      <td className="px-4 py-2 font-medium">
-                        {i + 1}. {c.name}
-                      </td>
-                      <td className="px-4 py-2 text-neutral-500">{c._count.products}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <h2 className="mb-3 text-sm font-semibold text-brand-navy-900">Kategori Terlaris</h2>
+          {topCategories.length === 0 ? (
+            <EmptyState
+              title="Belum ada data kategori"
+              description="Belum ada kategori dengan produk terdaftar."
+            />
+          ) : (
+            <TableWrapper>
+              <div className="overflow-x-auto">
+                <Table>
+                  <THead>
+                    <TR>
+                      <TH>Kategori</TH>
+                      <TH className="text-right">Produk</TH>
+                    </TR>
+                  </THead>
+                  <TBody>
+                    {topCategories.map((c, i) => (
+                      <TR key={c.id}>
+                        <TD className="font-medium text-brand-navy-900">
+                          <span className="font-mono tabular-nums text-neutral-400">{i + 1}.</span>{" "}
+                          {c.name}
+                        </TD>
+                        <TD className="text-right font-mono tabular-nums">{c._count.products}</TD>
+                      </TR>
+                    ))}
+                  </TBody>
+                </Table>
+              </div>
+            </TableWrapper>
+          )}
         </div>
       </div>
-    </main>
+    </>
   );
 }

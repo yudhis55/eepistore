@@ -1,5 +1,8 @@
 import { getWishlist } from "@/features/review/actions";
 import { ProductCard } from "@/components/product-card";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -11,19 +14,26 @@ export default async function WishlistPage() {
   const items = await getWishlist();
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">Wishlist ({items.length})</h1>
+    <>
+      <PageHeader
+        title="Wishlist"
+        description={
+          items.length > 0
+            ? `${items.length} produk tersimpan`
+            : "Simpan produk favorit untuk dibeli nanti."
+        }
+      />
 
       {items.length === 0 ? (
-        <div className="rounded-lg border border-border bg-neutral-100 p-12 text-center">
-          <p className="text-neutral-500">Wishlist Anda kosong.</p>
-          <Link
-            href="/products"
-            className="mt-4 inline-block rounded-lg bg-brand-navy-900 px-4 py-2 font-medium text-white hover:bg-brand-navy-700"
-          >
-            Lihat Produk
-          </Link>
-        </div>
+        <EmptyState
+          title="Wishlist Anda kosong"
+          description="Tandai produk yang Anda minati untuk menyimpannya di sini."
+          action={
+            <Link className={buttonVariants({ variant: "primary" })} href="/products">
+              Lihat Produk
+            </Link>
+          }
+        />
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((item) => (
@@ -39,6 +49,6 @@ export default async function WishlistPage() {
           ))}
         </div>
       )}
-    </main>
+    </>
   );
 }

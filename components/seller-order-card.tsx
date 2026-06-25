@@ -19,12 +19,12 @@ type Order = {
   id: string;
   status: string;
   paymentMethod: string;
-  totalAmount: { toNumber: () => number };
+  totalAmount: number;
   buyer: { name: string; email: string };
   items: {
     id: string;
     quantity: number;
-    priceAtPurchase: { toNumber: () => number };
+    priceAtPurchase: number;
     product: { name: string; images: { imageUrl: string }[] };
   }[];
   payment: { status: string; proofImageUrl: string | null } | null;
@@ -43,13 +43,14 @@ export function SellerOrderCard({ order }: { order: Order }) {
     DIBATALKAN: "Dibatalkan",
   };
 
+  // Ink colors are the darker shades that hold AA at 12px on the tinted fill.
   const statusColor: Record<string, string> = {
-    MENUNGGU_PEMBAYARAN: "bg-warning/20 text-warning",
-    MENUNGGU_KONFIRMASI: "bg-warning/20 text-warning",
-    DIPROSES: "bg-brand-navy-700/20 text-brand-navy-700",
-    SIAP_DIAMBIL: "bg-brand-gold-500/20 text-brand-gold-500",
-    SELESAI: "bg-success/20 text-success",
-    DIBATALKAN: "bg-danger/20 text-danger",
+    MENUNGGU_PEMBAYARAN: "bg-warning/20 text-amber-900",
+    MENUNGGU_KONFIRMASI: "bg-warning/20 text-amber-900",
+    DIPROSES: "bg-brand-navy-900/10 text-brand-navy-900",
+    SIAP_DIAMBIL: "bg-brand-gold-500/20 text-amber-900",
+    SELESAI: "bg-success/15 text-success",
+    DIBATALKAN: "bg-danger/15 text-danger",
   };
 
   function run(fn: () => Promise<unknown>) {
@@ -76,7 +77,7 @@ export function SellerOrderCard({ order }: { order: Order }) {
             <span className="text-neutral-500">
               {item.product.name} x {item.quantity}
             </span>
-            <span>{formatPrice(item.priceAtPurchase.toNumber() * item.quantity)}</span>
+            <span>{formatPrice(item.priceAtPurchase * item.quantity)}</span>
           </div>
         ))}
       </div>
@@ -85,9 +86,7 @@ export function SellerOrderCard({ order }: { order: Order }) {
         <div className="flex gap-2 text-xs text-neutral-500">
           <span>{order.paymentMethod === "COD" ? "COD" : "Transfer"}</span>
         </div>
-        <span className="font-bold text-brand-navy-900">
-          {formatPrice(order.totalAmount.toNumber())}
-        </span>
+        <span className="font-bold text-brand-navy-900">{formatPrice(order.totalAmount)}</span>
       </div>
 
       {/* Action buttons based on status */}

@@ -1,5 +1,9 @@
 import { getNotifications } from "@/features/notification/actions";
 import { MarkAllReadButton } from "@/components/mark-all-read-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -25,52 +29,57 @@ export default async function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-navy-900">
-          Notifikasi
-          {unreadCount > 0 && (
-            <span className="ml-2 rounded-full bg-danger px-2 py-0.5 text-sm text-white">
-              {unreadCount}
-            </span>
-          )}
-        </h1>
-        {unreadCount > 0 && <MarkAllReadButton />}
-      </div>
+    <>
+      <PageHeader
+        title="Notifikasi"
+        description="Riwayat pemberitahuan pesanan, pembayaran, dan akun Anda."
+        actions={
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <Badge variant="danger">
+                <span className="font-mono tabular-nums">{unreadCount}</span> belum dibaca
+              </Badge>
+            )}
+            {unreadCount > 0 && <MarkAllReadButton />}
+          </div>
+        }
+      />
 
       {notifications.length === 0 ? (
-        <div className="rounded-lg border border-border bg-neutral-100 p-12 text-center">
-          <p className="text-neutral-500">Belum ada notifikasi.</p>
-        </div>
+        <EmptyState
+          title="Belum ada notifikasi"
+          description="Pemberitahuan tentang pesanan, pembayaran, dan verifikasi Anda akan muncul di sini."
+        />
       ) : (
         <div className="space-y-2">
           {notifications.map((notif) => (
-            <div
+            <Card
               key={notif.id}
-              className={`rounded-lg border p-3 ${
-                notif.isRead
-                  ? "bg-surface-white border-border"
-                  : "border-brand-navy-700/30 bg-brand-navy-700/5"
-              }`}
+              className={notif.isRead ? "" : "border-brand-navy-700/30 bg-brand-navy-700/5"}
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-xs font-medium text-brand-navy-700">
-                    {typeLabel[notif.type] ?? notif.type}
-                  </span>
-                  <p className="text-sm font-medium">{notif.title}</p>
+              <CardBody className="p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-xs font-medium text-brand-navy-700">
+                      {typeLabel[notif.type] ?? notif.type}
+                    </span>
+                    <p className="text-sm font-medium">{notif.title}</p>
+                  </div>
+                  {!notif.isRead && (
+                    <span
+                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand-navy-900"
+                      aria-label="Belum dibaca"
+                    />
+                  )}
                 </div>
-                {!notif.isRead && (
-                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand-navy-900" />
-                )}
-              </div>
-              <p className="mt-1 text-xs text-neutral-500">
-                {new Date(notif.createdAt).toLocaleString("id-ID")}
-              </p>
-            </div>
+                <p className="mt-1 text-xs text-neutral-500">
+                  {new Date(notif.createdAt).toLocaleString("id-ID")}
+                </p>
+              </CardBody>
+            </Card>
           ))}
         </div>
       )}
-    </main>
+    </>
   );
 }

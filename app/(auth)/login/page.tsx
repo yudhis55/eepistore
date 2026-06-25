@@ -4,6 +4,9 @@ import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
+import { Input, FormField } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 function LoginForm() {
   const router = useRouter();
@@ -20,11 +23,7 @@ function LoginForm() {
     setLoading(true);
     setError("");
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    const result = await signIn("credentials", { email, password, redirect: false });
 
     if (result?.error) {
       setError("Email atau password salah");
@@ -37,67 +36,64 @@ function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="email" className="mb-1 block text-sm font-medium">
-          Email
-        </label>
-        <input
+      <FormField label="Email" htmlFor="email" required>
+        <Input
           id="email"
           type="email"
           required
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:ring-2 focus:ring-brand-navy-700"
         />
-      </div>
+      </FormField>
 
-      <div>
-        <label htmlFor="password" className="mb-1 block text-sm font-medium">
-          Password
-        </label>
-        <input
+      <FormField label="Password" htmlFor="password" required>
+        <Input
           id="password"
           type="password"
           required
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:ring-2 focus:ring-brand-navy-700"
         />
-      </div>
+      </FormField>
 
-      {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+      {error && (
+        <p
+          role="alert"
+          className="rounded-md bg-danger/10 px-3 py-2 text-sm font-medium text-danger"
+        >
+          {error}
+        </p>
+      )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-lg bg-brand-navy-900 px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-navy-700 disabled:opacity-50"
-      >
-        {loading ? "Memproses..." : "Masuk"}
-      </button>
+      <Button type="submit" loading={loading} className="w-full">
+        Masuk
+      </Button>
     </form>
   );
 }
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-brand-navy-900">Masuk</h1>
-          <p className="mt-1 text-sm text-neutral-500">Masuk ke akun EEPISTORE Anda</p>
-        </div>
+    <div className="space-y-6">
+      <div className="text-center">
+        <h1 className="text-h2 text-brand-navy-900">Masuk</h1>
+        <p className="mt-1 text-sm text-neutral-500">Masuk ke akun EEPISTORE Anda</p>
+      </div>
 
-        <Suspense fallback={<div className="text-center text-sm text-neutral-500">Memuat...</div>}>
+      <Card className="p-6">
+        <Suspense fallback={<div className="text-center text-sm text-neutral-500">Memuat…</div>}>
           <LoginForm />
         </Suspense>
+      </Card>
 
-        <p className="text-center text-sm text-neutral-500">
-          Belum punya akun?{" "}
-          <Link href="/register" className="font-medium text-brand-navy-700 hover:underline">
-            Daftar
-          </Link>
-        </p>
-      </div>
-    </main>
+      <p className="text-center text-sm text-neutral-500">
+        Belum punya akun?{" "}
+        <Link href="/register" className="font-medium text-brand-navy-700 hover:underline">
+          Daftar
+        </Link>
+      </p>
+    </div>
   );
 }

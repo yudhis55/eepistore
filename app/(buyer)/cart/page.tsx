@@ -1,11 +1,13 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { getCart } from "@/features/cart/actions";
 import { CartItem } from "@/components/cart-item";
-import Link from "next/link";
-import type { Metadata } from "next";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonVariants } from "@/components/ui/button";
 
-export const metadata: Metadata = {
-  title: "Keranjang — EEPISTORE",
-};
+export const metadata: Metadata = { title: "Keranjang — EEPISTORE" };
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -18,25 +20,26 @@ export default async function CartPage() {
   const { groups, totalItems, totalPrice } = await getCart();
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">Keranjang ({totalItems})</h1>
+    <>
+      <PageHeader title={`Keranjang (${totalItems})`} description="Tinjau item sebelum checkout." />
 
       {totalItems === 0 ? (
-        <div className="rounded-lg border border-border bg-neutral-100 p-12 text-center">
-          <p className="text-neutral-500">Keranjang Anda kosong.</p>
-          <Link
-            href="/products"
-            className="mt-4 inline-block rounded-lg bg-brand-navy-900 px-4 py-2 font-medium text-white hover:bg-brand-navy-700"
-          >
-            Mulai Belanja
-          </Link>
-        </div>
+        <EmptyState
+          icon={<CartIcon />}
+          title="Keranjang Anda kosong"
+          description="Jelajahi katalog dan temukan kebutuhan praktikum, modul, atau barang preloved dari teman PENS."
+          action={
+            <Link href="/products" className={buttonVariants({ variant: "primary" })}>
+              Mulai Belanja
+            </Link>
+          }
+        />
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Cart items grouped by store */}
-          <div className="space-y-6 lg:col-span-2">
+          <div className="space-y-4 lg:col-span-2">
             {groups.map((group) => (
-              <div key={group.storeId} className="rounded-lg border border-border p-4">
+              <Card key={group.storeId} className="p-4">
                 <Link
                   href={`/stores/${group.storeId}`}
                   className="mb-3 block text-sm font-semibold text-brand-navy-700 hover:underline"
@@ -57,28 +60,54 @@ export default async function CartPage() {
                     />
                   ))}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
 
           {/* Summary */}
           <div className="lg:col-span-1">
-            <div className="sticky top-4 rounded-lg border border-border p-4">
-              <h2 className="mb-3 text-sm font-semibold">Ringkasan</h2>
-              <div className="flex justify-between text-sm">
+            <Card className="sticky top-20 p-4">
+              <h2 className="mb-3 text-sm font-semibold text-neutral-900">Ringkasan</h2>
+              <div className="flex items-baseline justify-between border-b border-border pb-3 text-sm">
                 <span className="text-neutral-500">Total ({totalItems} item)</span>
-                <span className="font-bold text-brand-navy-900">{formatPrice(totalPrice)}</span>
+                <span className="font-mono text-lg font-bold tabular-nums text-brand-navy-900">
+                  {formatPrice(totalPrice)}
+                </span>
               </div>
               <Link
                 href="/checkout"
-                className="mt-4 block rounded-lg bg-brand-navy-900 px-4 py-2.5 text-center font-medium text-white transition-colors hover:bg-brand-navy-700"
+                className={`${buttonVariants({ variant: "primary", size: "lg" })} mt-4 w-full`}
               >
                 Checkout
               </Link>
-            </div>
+              <p className="mt-3 text-center text-xs text-neutral-500">
+                Bayar transfer manual atau COD — temu di kampus.
+              </p>
+            </Card>
           </div>
         </div>
       )}
-    </main>
+    </>
+  );
+}
+
+function CartIcon() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <circle cx="9" cy="20" r="1.5" />
+      <circle cx="18" cy="20" r="1.5" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2 3h2.5l2.2 12.4a1.5 1.5 0 001.48 1.21h9.1a1.5 1.5 0 001.47-1.18L21 7H5.2"
+      />
+    </svg>
   );
 }

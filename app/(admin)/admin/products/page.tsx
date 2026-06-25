@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/rbac";
 import { ProductModeration } from "@/components/product-moderation";
+import { PageHeader } from "@/components/ui/page-header";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -20,11 +21,12 @@ export default async function AdminProductsPage() {
   });
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">
-        Moderasi Produk ({products.length})
-      </h1>
+    <>
+      <PageHeader
+        title="Moderasi Produk"
+        description={`Tinjau dan moderasi produk yang diunggah penjual · ${products.length} produk`}
+      />
       <ProductModeration products={products} />
-    </main>
+    </>
   );
 }

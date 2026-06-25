@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/rbac";
 import { OrderStatusBadge } from "@/components/order-status-badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonVariants } from "@/components/ui/button";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -50,81 +55,104 @@ export default async function OrdersPage({
   });
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">Pesanan Saya</h1>
+    <>
+      <PageHeader
+        title="Pesanan Saya"
+        description="Pantau dan kelola semua pesanan Anda di satu tempat."
+      />
 
       {justCheckedOut && (
-        <div className="mb-6 rounded-lg border border-success/30 bg-success/10 p-4 text-sm text-success">
-          Pesanan berhasil dibuat!{" "}
+        <Badge variant="success" className="mb-6 px-3 py-2 text-sm">
           {orders.filter(
             (o) => o.paymentMethod === "MANUAL_TRANSFER" && o.status === "MENUNGGU_PEMBAYARAN",
-          ).length > 0 && "Silakan upload bukti pembayaran."}
-        </div>
+          ).length > 0
+            ? "Pesanan berhasil dibuat! Silakan upload bukti pembayaran."
+            : "Pesanan berhasil dibuat!"}
+        </Badge>
       )}
 
       {orders.length === 0 ? (
-        <div className="rounded-lg border border-border bg-neutral-100 p-12 text-center">
-          <p className="text-neutral-500">Belum ada pesanan.</p>
-          <Link
-            href="/products"
-            className="mt-4 inline-block rounded-lg bg-brand-navy-900 px-4 py-2 font-medium text-white hover:bg-brand-navy-700"
-          >
-            Mulai Belanja
-          </Link>
-        </div>
+        <EmptyState
+          title="Belum ada pesanan"
+          description="Pesanan Anda akan muncul di sini setelah Anda menyelesaikan checkout."
+          action={
+            <Link className={buttonVariants({ variant: "primary" })} href="/products">
+              Mulai Belanja
+            </Link>
+          }
+        />
       ) : (
         <div className="space-y-4">
           {orders.map((order) => (
-            <div key={order.id} className="rounded-lg border border-border p-4">
-              <div className="flex items-center justify-between border-b border-border pb-2">
-                <div>
-                  <p className="text-sm font-medium">Order #{order.id.slice(-8)}</p>
-                  <Link
-                    href={`/stores/${order.store.id}`}
-                    className="text-xs text-brand-navy-700 hover:underline"
-                  >
-                    {order.store.storeName}
-                  </Link>
-                </div>
-                <OrderStatusBadge status={order.status} label={statusLabel[order.status]} />
-              </div>
-
-              <div className="mt-3 space-y-1">
-                {order.items.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-neutral-500">
-                      {item.product.name} x {item.quantity}
-                    </span>
-                    <span>{formatPrice(Number(item.priceAtPurchase) * item.quantity)}</span>
+            <Card key={order.id}>
+              <CardBody>
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{order.store.storeName}</span>
+                      <span className="text-neutral-300">•</span>
+                      <span className="font-mono text-xs tabular-nums text-neutral-500">
+                        #{order.id.slice(-8)}
+                      </span>
+                    </div>
+                    <OrderStatusBadge
+                      status={order.status}
+                      label={statusLabel[order.status] ?? order.status}
+                    />
                   </div>
-                ))}
-              </div>
-
-              <div className="mt-3 flex items-center justify-between border-t border-border pt-2">
-                <div className="flex gap-2 text-xs text-neutral-500">
-                  <span>{order.paymentMethod === "COD" ? "COD" : "Transfer"}</span>
-                  <span>•</span>
-                  <span>{order.deliveryMethod === "PICKUP_COD" ? "Ambil/COD" : "Diantar"}</span>
-                </div>
-                <span className="font-bold text-brand-navy-900">
-                  {formatPrice(Number(order.totalAmount))}
-                </span>
-              </div>
-
-              {/* Upload proof link for pending transfer orders */}
-              {order.status === "MENUNGGU_PEMBAYARAN" &&
-                order.paymentMethod === "MANUAL_TRANSFER" && (
                   <Link
-                    href={`/orders/${order.id}/upload-proof`}
-                    className="mt-3 block rounded-lg bg-warning px-4 py-2 text-center text-sm font-medium text-white hover:opacity-90"
+                    href={`/orders/${order.id}`}
+                    className="text-sm font-medium text-brand-navy-900 hover:underline"
                   >
-                    Upload Bukti Pembayaran
+                    Lihat Detail
                   </Link>
-                )}
-            </div>
+                </div>
+
+                {/* Items preview */}
+                <div className="mt-3 space-y-1 text-sm text-neutral-600">
+                  {order.items.slice(0, 2).map((item, i) => (
+                    <p key={i} className="truncate">
+                      {item.product.name} ×{" "}
+                      <span className="font-mono tabular-nums">{item.quantity}</span>
+                    </p>
+                  ))}
+                  {order.items.length > 2 && (
+                    <p className="text-xs text-neutral-500">
+                      +{order.items.length - 2} produk lainnya
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+                  <div className="flex gap-2 text-xs text-neutral-500">
+                    <span>{order.paymentMethod === "COD" ? "COD" : "Transfer"}</span>
+                    <span>•</span>
+                    <span>{order.deliveryMethod === "PICKUP_COD" ? "Ambil/COD" : "Diantar"}</span>
+                  </div>
+                  <span className="font-mono font-bold tabular-nums text-brand-navy-900">
+                    {formatPrice(Number(order.totalAmount))}
+                  </span>
+                </div>
+
+                {/* Upload proof link for pending transfer orders */}
+                {order.status === "MENUNGGU_PEMBAYARAN" &&
+                  order.paymentMethod === "MANUAL_TRANSFER" && (
+                    <Link
+                      href={`/orders/${order.id}/upload-proof`}
+                      className={buttonVariants({
+                        variant: "gold",
+                        size: "sm",
+                        className: "mt-3 w-full",
+                      })}
+                    >
+                      Upload Bukti Pembayaran
+                    </Link>
+                  )}
+              </CardBody>
+            </Card>
           ))}
         </div>
       )}
-    </main>
+    </>
   );
 }

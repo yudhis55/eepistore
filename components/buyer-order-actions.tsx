@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { confirmReceivedAction, cancelOrderAction } from "@/features/order/actions";
+import { Button } from "@/components/ui/button";
 
 export function BuyerOrderActions({ orderId, status }: { orderId: string; status: string }) {
   const router = useRouter();
@@ -13,11 +14,8 @@ export function BuyerOrderActions({ orderId, status }: { orderId: string; status
     setError("");
     startTransition(async () => {
       const result = await confirmReceivedAction(orderId);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        router.refresh();
-      }
+      if (result.error) setError(result.error);
+      else router.refresh();
     });
   }
 
@@ -26,36 +24,42 @@ export function BuyerOrderActions({ orderId, status }: { orderId: string; status
     setError("");
     startTransition(async () => {
       const result = await cancelOrderAction(orderId);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        router.refresh();
-      }
+      if (result.error) setError(result.error);
+      else router.refresh();
     });
   }
 
   return (
     <div className="space-y-2">
-      {error && <p className="rounded bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+      {error && (
+        <p
+          role="alert"
+          className="rounded-md bg-danger/10 px-3 py-2 text-sm font-medium text-danger"
+        >
+          {error}
+        </p>
+      )}
 
       {status === "SIAP_DIAMBIL" && (
-        <button
+        <Button
+          variant="primary"
+          className="w-full bg-success hover:bg-success/90 focus-visible:outline-success"
+          loading={isPending}
           onClick={handleConfirmReceived}
-          disabled={isPending}
-          className="w-full rounded-lg bg-success px-4 py-2.5 font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
-          {isPending ? "Memproses..." : "Konfirmasi Diterima"}
-        </button>
+          {isPending ? "Memproses…" : "Konfirmasi Diterima"}
+        </Button>
       )}
 
       {status === "MENUNGGU_PEMBAYARAN" && (
-        <button
+        <Button
+          variant="secondary"
+          className="w-full border-danger text-danger hover:bg-danger/10"
+          loading={isPending}
           onClick={handleCancel}
-          disabled={isPending}
-          className="w-full rounded-lg border border-danger px-4 py-2.5 font-medium text-danger hover:bg-danger/10 disabled:opacity-50"
         >
-          {isPending ? "Memproses..." : "Batalkan Pesanan"}
-        </button>
+          {isPending ? "Memproses…" : "Batalkan Pesanan"}
+        </Button>
       )}
     </div>
   );

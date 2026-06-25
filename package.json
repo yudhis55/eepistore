@@ -12,12 +12,13 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "dev:up": "docker compose up -d",
+    "dev:up": "docker compose up -d && npm run storage:setup",
     "dev:down": "docker compose down",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "storage:setup": "tsx scripts/setup-storage.ts",
     "prepare": "husky"
   },
   "prisma": {
@@ -39,6 +40,7 @@
     "prisma": "^7.8.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-dropzone": "^15.0.0",
     "react-hook-form": "^7.80.0",
     "zod": "^4.4.3"
   },

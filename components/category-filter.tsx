@@ -30,8 +30,10 @@ export function CategoryFilter({ categories }: { categories: CategoryWithChildre
 
       <button
         onClick={() => selectCategory(null)}
-        className={`block w-full rounded px-2 py-1.5 text-left text-sm transition-colors ${
-          !activeCat ? "bg-brand-navy-900 text-white" : "text-neutral-500 hover:bg-neutral-100"
+        className={`block min-h-10 w-full rounded px-3 py-2 text-left text-sm transition-colors ${
+          !activeCat
+            ? "bg-brand-navy-900 font-medium text-white"
+            : "text-neutral-600 hover:bg-neutral-100"
         }`}
       >
         Semua Kategori
@@ -41,10 +43,10 @@ export function CategoryFilter({ categories }: { categories: CategoryWithChildre
         <div key={cat.id}>
           <button
             onClick={() => selectCategory(cat.id)}
-            className={`block w-full rounded px-2 py-1.5 text-left text-sm transition-colors ${
+            className={`block min-h-10 w-full rounded px-3 py-2 text-left text-sm transition-colors ${
               activeCat === cat.id
-                ? "bg-brand-navy-900 text-white"
-                : "text-neutral-500 hover:bg-neutral-100"
+                ? "bg-brand-navy-900 font-medium text-white"
+                : "text-neutral-600 hover:bg-neutral-100"
             }`}
           >
             {cat.name}
@@ -57,7 +59,7 @@ export function CategoryFilter({ categories }: { categories: CategoryWithChildre
                 <button
                   key={child.id}
                   onClick={() => selectCategory(child.id)}
-                  className={`block w-full rounded px-2 py-1 text-left text-xs transition-colors ${
+                  className={`block min-h-9 w-full rounded px-2 py-1 text-left text-xs transition-colors ${
                     activeCat === child.id
                       ? "font-medium text-brand-navy-900"
                       : "text-neutral-500 hover:bg-neutral-100"

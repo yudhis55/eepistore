@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/rbac";
 import { OrderStatusBadge } from "@/components/order-status-badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { Table, THead, TBody, TR, TH, TD, TableWrapper } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -36,43 +41,62 @@ export default async function AdminOrdersPage() {
   });
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">Semua Order ({orders.length})</h1>
+    <>
+      <PageHeader
+        title="Semua Order"
+        description={`Daftar seluruh transaksi lintas toko · ${orders.length} order`}
+      />
 
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-100 text-left text-neutral-500">
-            <tr>
-              <th className="px-4 py-3">Order</th>
-              <th className="px-4 py-3">Buyer</th>
-              <th className="px-4 py-3">Toko</th>
-              <th className="px-4 py-3">Items</th>
-              <th className="px-4 py-3">Metode</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Total</th>
-              <th className="px-4 py-3">Tanggal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((order) => (
-              <tr key={order.id} className="border-t border-border">
-                <td className="px-4 py-3 font-medium">#{order.id.slice(-8)}</td>
-                <td className="px-4 py-3 text-neutral-500">{order.buyer.name}</td>
-                <td className="px-4 py-3 text-neutral-500">{order.store.storeName}</td>
-                <td className="px-4 py-3 text-neutral-500">{order.items.length}</td>
-                <td className="px-4 py-3">{order.paymentMethod === "COD" ? "COD" : "Transfer"}</td>
-                <td className="px-4 py-3">
-                  <OrderStatusBadge status={order.status} label={statusLabel[order.status]} />
-                </td>
-                <td className="px-4 py-3 font-medium">{formatPrice(Number(order.totalAmount))}</td>
-                <td className="px-4 py-3 text-xs text-neutral-500">
-                  {new Date(order.createdAt).toLocaleDateString("id-ID")}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </main>
+      {orders.length === 0 ? (
+        <EmptyState
+          title="Belum ada order"
+          description="Transaksi yang masuk dari pembeli akan tampil di sini."
+          action={
+            <Link href="/admin" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+              Kembali ke Dasbor
+            </Link>
+          }
+        />
+      ) : (
+        <TableWrapper>
+          <div className="overflow-x-auto">
+            <Table>
+              <THead>
+                <TR>
+                  <TH>Order</TH>
+                  <TH>Buyer</TH>
+                  <TH>Toko</TH>
+                  <TH className="text-right">Items</TH>
+                  <TH>Metode</TH>
+                  <TH>Status</TH>
+                  <TH className="text-right">Total</TH>
+                  <TH>Tanggal</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {orders.map((order) => (
+                  <TR key={order.id}>
+                    <TD className="font-mono tabular-nums">#{order.id.slice(-8)}</TD>
+                    <TD className="text-neutral-500">{order.buyer.name}</TD>
+                    <TD className="text-neutral-500">{order.store.storeName}</TD>
+                    <TD className="text-right font-mono tabular-nums">{order.items.length}</TD>
+                    <TD>{order.paymentMethod === "COD" ? "COD" : "Transfer"}</TD>
+                    <TD>
+                      <OrderStatusBadge status={order.status} label={statusLabel[order.status]} />
+                    </TD>
+                    <TD className="text-right font-mono tabular-nums">
+                      {formatPrice(Number(order.totalAmount))}
+                    </TD>
+                    <TD className="text-xs text-neutral-500">
+                      {new Date(order.createdAt).toLocaleDateString("id-ID")}
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </div>
+        </TableWrapper>
+      )}
+    </>
   );
 }

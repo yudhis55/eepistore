@@ -1,30 +1,27 @@
+import type { Metadata } from "next";
 import { getSellerOrders } from "@/features/order/actions";
 import { SellerOrderCard } from "@/components/seller-order-card";
-import Link from "next/link";
-import type { Metadata } from "next";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
-export const metadata: Metadata = {
-  title: "Pesanan Masuk — Dashboard Seller",
-};
+export const metadata: Metadata = { title: "Pesanan Masuk — Dashboard Seller" };
 
 export default async function SellerOrdersPage() {
   const orders = await getSellerOrders();
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link href="/dashboard" className="text-sm text-neutral-500 hover:underline">
-          ← Dashboard
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold text-brand-navy-900">
-          Pesanan Masuk ({orders.length})
-        </h1>
-      </div>
+    <>
+      <PageHeader
+        title={`Pesanan Masuk (${orders.length})`}
+        description="Kelola pesanan yang masuk ke toko Anda — konfirmasi, proses, atau siapkan untuk diambil."
+      />
 
       {orders.length === 0 ? (
-        <div className="rounded-lg border border-border bg-neutral-100 p-12 text-center">
-          <p className="text-neutral-500">Belum ada pesanan masuk.</p>
-        </div>
+        <EmptyState
+          icon={<BoxIcon />}
+          title="Belum ada pesanan masuk"
+          description="Pesanan dari pembeli akan muncul di sini. Pastikan produk Anda aktif dan stok tersedia."
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {orders.map((order) => (
@@ -32,6 +29,25 @@ export default async function SellerOrdersPage() {
           ))}
         </div>
       )}
-    </main>
+    </>
+  );
+}
+
+function BoxIcon() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 7l9-4 9 4v10l-9 4-9-4V7zM3 7l9 4M21 7l-9 4M12 11v10"
+      />
+    </svg>
   );
 }

@@ -1,6 +1,8 @@
-import { getAllVouchers, createVoucherAction } from "@/features/voucher/actions";
+import { getAllVouchers } from "@/features/voucher/actions";
 import { VoucherManager } from "@/components/voucher-manager";
 import { VoucherForm } from "@/components/voucher-form";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -11,21 +13,31 @@ export default async function AdminVouchersPage() {
   const vouchers = await getAllVouchers();
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">
-        Kelola Voucher ({vouchers.length})
-      </h1>
+    <>
+      <PageHeader
+        title="Kelola Voucher"
+        description={`Buat dan kelola kode promo — ${vouchers.length} voucher`}
+      />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div>
-          <h2 className="mb-3 text-sm font-semibold">Tambah Voucher</h2>
-          <VoucherForm />
-        </div>
-        <div>
-          <h2 className="mb-3 text-sm font-semibold">Daftar Voucher</h2>
-          <VoucherManager vouchers={vouchers} />
-        </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-brand-navy-900">Tambah Voucher</h2>
+          </CardHeader>
+          <CardBody>
+            <VoucherForm />
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-brand-navy-900">Daftar Voucher</h2>
+          </CardHeader>
+          <CardBody>
+            <VoucherManager vouchers={vouchers} />
+          </CardBody>
+        </Card>
       </div>
-    </main>
+    </>
   );
 }

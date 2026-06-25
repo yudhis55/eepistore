@@ -1,11 +1,14 @@
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/rbac";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/rbac";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { Table, THead, TBody, TR, TH, TD, TableWrapper } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { OrderStatusBadge } from "@/components/order-status-badge";
 
-export const metadata: Metadata = {
-  title: "Admin Dashboard — EEPISTORE",
-};
+export const metadata: Metadata = { title: "Admin Dashboard — EEPISTORE" };
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -14,10 +17,28 @@ const formatPrice = (price: number) =>
     minimumFractionDigits: 0,
   }).format(price);
 
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  MENUNGGU_PEMBAYARAN: "Menunggu Bayar",
+  MENUNGGU_KONFIRMASI: "Menunggu Konfirmasi",
+  DIPROSES: "Diproses",
+  SIAP_DIAMBIL: "Siap Diambil",
+  SELESAI: "Selesai",
+  DIBATALKAN: "Dibatalkan",
+};
+
 export default async function AdminDashboardPage() {
   await requireRole("ADMIN");
 
-  const [totalUsers, totalStores, totalProducts, totalOrders, recentOrders] = await Promise.all([
+  const [
+    totalUsers,
+    totalStores,
+    totalProducts,
+    totalOrders,
+    recentOrders,
+    gmvResult,
+    pendingStores,
+    pendingVerifications,
+  ] = await Promise.all([
     prisma.user.count(),
     prisma.storeProfile.count({ where: { status: "APPROVED" } }),
     prisma.product.count({ where: { status: "ACTIVE" } }),
@@ -25,156 +46,94 @@ export default async function AdminDashboardPage() {
     prisma.order.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
-      include: {
-        buyer: { select: { name: true } },
-        store: { select: { storeName: true } },
-      },
+      include: { buyer: { select: { name: true } }, store: { select: { storeName: true } } },
     }),
+    prisma.payment.aggregate({
+      where: { status: { in: ["VERIFIED", "COD_RECEIVED"] } },
+      _sum: { amount: true },
+    }),
+    prisma.storeProfile.count({ where: { status: "PENDING" } }),
+    prisma.user.count({ where: { verificationStatus: "PENDING" } }),
   ]);
 
-  const gmvResult = await prisma.payment.aggregate({
-    where: { status: { in: ["VERIFIED", "COD_RECEIVED"] } },
-    _sum: { amount: true },
-  });
   const gmv = Number(gmvResult._sum.amount ?? 0);
 
-  const pendingStores = await prisma.storeProfile.count({
-    where: { status: "PENDING" },
-  });
-
-  const stats = [
-    { label: "Total User", value: totalUsers.toString(), href: "/admin/users" },
-    { label: "Toko Aktif", value: totalStores.toString(), href: "/admin/stores" },
-    { label: "Produk Aktif", value: totalProducts.toString(), href: "/admin/products" },
-    { label: "Total Order", value: totalOrders.toString(), href: "/admin/orders" },
-    { label: "GMV", value: formatPrice(gmv), href: null },
-    { label: "Toko Pending", value: pendingStores.toString(), href: "/admin/stores" },
-  ];
-
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">Admin Dashboard</h1>
+    <>
+      <PageHeader
+        title="Admin Dashboard"
+        description="Ringkasan operasional EEPISTORE"
+        actions={
+          pendingStores > 0 ? (
+            <Link
+              href="/admin/stores"
+              className="text-sm font-medium text-brand-navy-700 hover:underline"
+            >
+              {pendingStores} toko menunggu review →
+            </Link>
+          ) : undefined
+        }
+      />
 
       {/* Stats grid */}
       <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className={`rounded-lg border border-border p-4 ${
-              stat.href ? "cursor-pointer hover:bg-neutral-100" : ""
-            }`}
-          >
-            {stat.href ? (
-              <Link href={stat.href}>
-                <p className="text-xs text-neutral-500">{stat.label}</p>
-                <p className="mt-1 text-xl font-bold text-brand-navy-900">{stat.value}</p>
-              </Link>
-            ) : (
-              <>
-                <p className="text-xs text-neutral-500">{stat.label}</p>
-                <p className="mt-1 text-xl font-bold text-brand-navy-900">{stat.value}</p>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Quick links */}
-      <div className="mb-8 flex flex-wrap gap-2">
-        <Link
-          href="/admin/stores"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-        >
-          Kelola Toko
-        </Link>
-        <Link
+        <StatCard label="Total User" value={totalUsers.toString()} href="/admin/users" />
+        <StatCard label="Toko Aktif" value={totalStores.toString()} href="/admin/stores" />
+        <StatCard label="Produk Aktif" value={totalProducts.toString()} href="/admin/products" />
+        <StatCard label="Total Order" value={totalOrders.toString()} href="/admin/orders" />
+        <StatCard label="GMV" value={formatPrice(gmv)} tone="gold" />
+        <StatCard
+          label="Verifikasi Pending"
+          value={pendingVerifications.toString()}
           href="/admin/verifications"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-        >
-          Verifikasi Student
-        </Link>
-        <Link
-          href="/admin/categories"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-        >
-          Kelola Kategori
-        </Link>
-        <Link
-          href="/admin/orders"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-        >
-          Semua Order
-        </Link>
-        <Link
-          href="/admin/products"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-        >
-          Moderasi Produk
-        </Link>
-        <Link
-          href="/admin/users"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-        >
-          Kelola User
-        </Link>
-        <Link
-          href="/admin/vouchers"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-        >
-          Voucher
-        </Link>
-        <Link
-          href="/admin/banners"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-        >
-          Banner
-        </Link>
-        <Link
-          href="/admin/reports"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
-        >
-          Laporan
-        </Link>
+          tone={pendingVerifications > 0 ? "warning" : "neutral"}
+        />
       </div>
 
       {/* Recent orders */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold">Pesanan Terbaru</h2>
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-100 text-left text-neutral-500">
-              <tr>
-                <th className="px-4 py-3">Order</th>
-                <th className="px-4 py-3">Buyer</th>
-                <th className="px-4 py-3">Toko</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">
-                    Belum ada pesanan.
-                  </td>
-                </tr>
-              ) : (
-                recentOrders.map((order) => (
-                  <tr key={order.id} className="border-t border-border">
-                    <td className="px-4 py-3 font-medium">#{order.id.slice(-8)}</td>
-                    <td className="px-4 py-3 text-neutral-500">{order.buyer.name}</td>
-                    <td className="px-4 py-3 text-neutral-500">{order.store.storeName}</td>
-                    <td className="px-4 py-3">{order.status}</td>
-                    <td className="px-4 py-3 font-medium">
+      <h2 className="mb-3 text-h3 text-brand-navy-900">Pesanan Terbaru</h2>
+      {recentOrders.length === 0 ? (
+        <EmptyState
+          title="Belum ada pesanan"
+          description="Pesanan yang masuk akan muncul di sini."
+        />
+      ) : (
+        <TableWrapper>
+          <div className="overflow-x-auto">
+            <Table>
+              <THead>
+                <TR className="hover:bg-transparent">
+                  <TH>ID</TH>
+                  <TH>Pembeli</TH>
+                  <TH>Toko</TH>
+                  <TH>Status</TH>
+                  <TH className="text-right">Total</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {recentOrders.map((order) => (
+                  <TR key={order.id}>
+                    <TD className="font-mono font-medium tabular-nums text-brand-navy-900">
+                      #{order.id.slice(-8)}
+                    </TD>
+                    <TD className="text-neutral-600">{order.buyer.name}</TD>
+                    <TD className="text-neutral-600">{order.store.storeName}</TD>
+                    <TD>
+                      <OrderStatusBadge
+                        status={order.status}
+                        label={ORDER_STATUS_LABEL[order.status] ?? order.status}
+                      />
+                    </TD>
+                    <TD className="text-right font-mono font-medium tabular-nums text-neutral-900">
                       {formatPrice(Number(order.totalAmount))}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </main>
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </div>
+        </TableWrapper>
+      )}
+    </>
   );
 }

@@ -39,3 +39,9 @@ docker/data/
 *.tsbuildinfo
 
 /lib/generated/prisma
+
+# impeccable design skill (tooling, local snapshots, dev logs — not project source)
+/.claude/
+/.impeccable/
+/.github/skills/
+/.github/hooks/

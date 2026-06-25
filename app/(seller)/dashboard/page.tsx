@@ -1,149 +1,168 @@
+import Link from "next/link";
+import type { Metadata } from "next";
 import { getMyStore } from "@/features/store/actions";
 import { getMyProducts } from "@/features/product/actions";
 import { StoreOnboardingForm } from "@/components/store-onboarding-form";
-import Link from "next/link";
-import type { Metadata } from "next";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonVariants } from "@/components/ui/button";
 
-export const metadata: Metadata = {
-  title: "Dashboard Seller — EEPISTORE",
-};
+export const metadata: Metadata = { title: "Dashboard Seller — EEPISTORE" };
+
+const formatPrice = (price: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(price);
 
 export default async function SellerDashboardPage() {
   const store = await getMyStore();
 
-  // No store yet -> show onboarding
+  // No store yet -> onboarding
   if (!store) {
     return (
-      <main className="container mx-auto px-4 py-8">
-        <div className="mx-auto max-w-lg">
-          <h1 className="mb-2 text-2xl font-bold text-brand-navy-900">Buka Toko</h1>
-          <p className="mb-6 text-sm text-neutral-500">
-            Lengkapi profil toko Anda untuk mulai berjualan. Pengajuan akan direview oleh Admin.
-          </p>
-          <StoreOnboardingForm />
-        </div>
-      </main>
+      <div className="mx-auto max-w-lg">
+        <PageHeader
+          title="Buka Toko"
+          description="Lengkapi profil toko Anda untuk mulai berjualan. Pengajuan akan direview oleh Admin."
+        />
+        <StoreOnboardingForm />
+      </div>
     );
   }
 
   // Store pending
   if (store.status === "PENDING") {
     return (
-      <main className="container mx-auto px-4 py-8">
-        <div className="rounded-lg border border-warning/30 bg-warning/10 p-6 text-center">
-          <h1 className="text-xl font-bold text-neutral-900">Pengajuan Sedang Direview</h1>
-          <p className="mt-2 text-sm text-neutral-500">
-            Toko &quot;{store.storeName}&quot; sedang dalam antrian review Admin. Anda akan mendapat
-            notifikasi setelah disetujui.
-          </p>
-        </div>
-      </main>
+      <Card className="border-warning/30 bg-warning/5 p-6 text-center">
+        <h2 className="text-h3 text-brand-navy-900">Pengajuan Sedang Direview</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
+          Toko &quot;{store.storeName}&quot; sedang dalam antrian review Admin. Anda akan mendapat
+          notifikasi setelah disetujui.
+        </p>
+      </Card>
     );
   }
 
   // Store rejected
   if (store.status === "REJECTED") {
     return (
-      <main className="container mx-auto px-4 py-8">
-        <div className="mx-auto max-w-lg">
-          <div className="mb-6 rounded-lg border border-danger/30 bg-danger/10 p-4">
-            <h1 className="font-bold text-danger">Pengajuan Ditolak</h1>
-            <p className="mt-1 text-sm text-neutral-500">
-              {store.rejectionReason ?? "Pengajuan toko Anda ditolak."}
-            </p>
-          </div>
-          <p className="mb-4 text-sm text-neutral-500">
-            Anda dapat mengajukan ulang dengan memperbaiki data:
+      <div className="mx-auto max-w-lg">
+        <PageHeader
+          title="Pengajuan Ditolak"
+          description="Anda dapat mengajukan ulang dengan memperbaiki data."
+        />
+        <Card className="mb-6 border-danger/30 bg-danger/5 p-4">
+          <p className="text-sm font-medium text-danger">Alasan penolakan</p>
+          <p className="mt-1 text-sm text-neutral-600">
+            {store.rejectionReason ?? "Pengajuan toko Anda ditolak."}
           </p>
-          <StoreOnboardingForm />
-        </div>
-      </main>
+        </Card>
+        <StoreOnboardingForm />
+      </div>
     );
   }
 
-  // Store approved -> show product list
+  // Store approved -> product list + stats
   const products = await getMyProducts();
+  const activeCount = products.filter((p) => p.status === "ACTIVE").length;
+  const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-navy-900">{store.storeName}</h1>
-          <p className="text-sm text-neutral-500">{products.length} produk</p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href="/dashboard/orders"
-            className="rounded-lg border border-border px-4 py-2.5 font-medium text-brand-navy-900 transition-colors hover:bg-neutral-100"
-          >
-            Pesanan Masuk
-          </Link>
-          <Link
-            href="/dashboard/products/new"
-            className="rounded-lg bg-brand-navy-900 px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-navy-700"
-          >
-            + Tambah Produk
-          </Link>
-        </div>
-      </div>
+    <>
+      <PageHeader
+        title={store.storeName}
+        description={`${products.length} produk · ${activeCount} aktif · ${totalStock} stok total`}
+        actions={
+          <>
+            <Link href="/dashboard/orders" className={buttonVariants({ variant: "secondary" })}>
+              Pesanan Masuk
+            </Link>
+            <Link href="/dashboard/products/new" className={buttonVariants({ variant: "primary" })}>
+              + Tambah Produk
+            </Link>
+          </>
+        }
+      />
 
       {products.length === 0 ? (
-        <div className="rounded-lg border border-border bg-neutral-100 p-12 text-center">
-          <p className="text-neutral-500">Belum ada produk. Mulai tambahkan produk pertama Anda.</p>
-        </div>
+        <EmptyState
+          icon={<PlusIcon />}
+          title="Belum ada produk"
+          description="Mulai tambahkan produk pertama Anda untuk berjualan di EEPISTORE."
+          action={
+            <Link href="/dashboard/products/new" className={buttonVariants({ variant: "primary" })}>
+              + Tambah Produk
+            </Link>
+          }
+        />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-100 text-left text-neutral-500">
-              <tr>
-                <th className="px-4 py-3">Produk</th>
-                <th className="px-4 py-3">Kategori</th>
-                <th className="px-4 py-3">Harga</th>
-                <th className="px-4 py-3">Stok</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr key={product.id} className="border-t border-border">
-                  <td className="px-4 py-3 font-medium">{product.name}</td>
-                  <td className="px-4 py-3 text-neutral-500">{product.category?.name ?? "-"}</td>
-                  <td className="px-4 py-3">
-                    {new Intl.NumberFormat("id-ID", {
-                      style: "currency",
-                      currency: "IDR",
-                      minimumFractionDigits: 0,
-                    }).format(Number(product.price))}
-                  </td>
-                  <td className="px-4 py-3">{product.stock}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs ${
-                        product.status === "ACTIVE"
-                          ? "bg-success/20 text-success"
-                          : product.status === "DRAFT"
-                            ? "bg-neutral-100 text-neutral-500"
-                            : "bg-danger/20 text-danger"
-                      }`}
-                    >
-                      {product.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/dashboard/products/${product.id}/edit`}
-                      className="text-brand-navy-700 hover:underline"
-                    >
-                      Edit
-                    </Link>
-                  </td>
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-border bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Produk</th>
+                  <th className="px-4 py-3 font-medium">Kategori</th>
+                  <th className="px-4 py-3 text-right font-medium">Harga</th>
+                  <th className="px-4 py-3 text-right font-medium">Stok</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 text-right font-medium">Aksi</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {products.map((product) => (
+                  <tr key={product.id} className="transition-colors hover:bg-neutral-50">
+                    <td className="px-4 py-3 font-medium text-neutral-900">{product.name}</td>
+                    <td className="px-4 py-3 text-neutral-500">{product.category?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-neutral-900">
+                      {formatPrice(Number(product.price))}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-neutral-700">
+                      {product.stock}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={product.status} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/dashboard/products/${product.id}/edit`}
+                        className="text-sm font-medium text-brand-navy-700 hover:underline"
+                      >
+                        Edit
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
-    </main>
+    </>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === "ACTIVE") return <Badge variant="success">Aktif</Badge>;
+  if (status === "DRAFT") return <Badge variant="neutral">Draft</Badge>;
+  return <Badge variant="danger">Nonaktif</Badge>;
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+    </svg>
   );
 }

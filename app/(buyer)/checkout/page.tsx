@@ -1,11 +1,11 @@
-import { getCart } from "@/features/cart/actions";
-import { CheckoutForm } from "@/components/checkout-form";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { getCart } from "@/features/cart/actions";
+import { CheckoutForm } from "@/components/checkout-form";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
 
-export const metadata: Metadata = {
-  title: "Checkout — EEPISTORE",
-};
+export const metadata: Metadata = { title: "Checkout — EEPISTORE" };
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -22,38 +22,39 @@ export default async function CheckoutPage() {
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">Checkout</h1>
+    <>
+      <PageHeader title="Checkout" description="Tinjau pesanan dan pilih metode pembayaran." />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Order summary */}
         <div className="space-y-4 lg:col-span-2">
           {groups.map((group) => (
-            <div key={group.storeId} className="rounded-lg border border-border p-4">
+            <Card key={group.storeId} className="p-4">
               <h2 className="mb-3 text-sm font-semibold text-brand-navy-700">{group.storeName}</h2>
               <div className="space-y-2">
                 {group.items.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-neutral-500">
-                      {item.product.name} x {item.quantity}
+                  <div key={item.id} className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="text-neutral-600">
+                      {item.product.name}{" "}
+                      <span className="text-neutral-400">× {item.quantity}</span>
                     </span>
-                    <span className="font-medium">
+                    <span className="shrink-0 font-mono font-medium tabular-nums text-neutral-900">
                       {formatPrice(Number(item.product.price) * item.quantity)}
                     </span>
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           ))}
         </div>
 
         {/* Checkout form */}
         <div className="lg:col-span-1">
-          <div className="sticky top-4">
+          <div className="sticky top-20">
             <CheckoutForm groups={groups} totalPrice={totalPrice} />
           </div>
         </div>
       </div>
-    </main>
+    </>
   );
 }

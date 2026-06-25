@@ -76,6 +76,28 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+      },
+      fontSize: {
+        // Heading scale — engineered, tighter ratio. Clamped display/h2/h3.
+        display: [
+          "clamp(2.25rem, 1.6rem + 2.8vw, 4rem)",
+          { lineHeight: "1.05", letterSpacing: "-0.03em", fontWeight: "700" },
+        ],
+        h2: [
+          "clamp(1.5rem, 1.2rem + 1.2vw, 2rem)",
+          { lineHeight: "1.15", letterSpacing: "-0.02em", fontWeight: "700" },
+        ],
+        h3: ["1.25rem", { lineHeight: "1.25", letterSpacing: "-0.01em", fontWeight: "600" }],
+      },
+      zIndex: {
+        // Semantic scale — never arbitrary 9999.
+        dropdown: "1000",
+        sticky: "1100",
+        "modal-backdrop": "1200",
+        modal: "1300",
+        toast: "1400",
+        tooltip: "1500",
       },
       keyframes: {
         "fade-in": {

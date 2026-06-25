@@ -296,7 +296,7 @@ export async function getSellerOrders() {
 
   if (!store) return [];
 
-  return prisma.order.findMany({
+  const orders = await prisma.order.findMany({
     where: { storeId: store.id },
     include: {
       buyer: { select: { name: true, email: true } },
@@ -311,4 +311,13 @@ export async function getSellerOrders() {
     },
     orderBy: { createdAt: "desc" },
   });
+
+  // Serialize Decimal → number. Prisma Decimal objects cannot be passed from a
+  // Server Component to a Client Component (SellerOrderCard is "use client").
+  return orders.map((o) => ({
+    ...o,
+    totalAmount: Number(o.totalAmount),
+    shippingCost: Number(o.shippingCost),
+    items: o.items.map((it) => ({ ...it, priceAtPurchase: Number(it.priceAtPurchase) })),
+  }));
 }

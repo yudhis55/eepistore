@@ -1,4 +1,8 @@
 import { getConversations } from "@/features/chat/actions";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -10,37 +14,37 @@ export default async function ChatListPage() {
   const conversations = await getConversations();
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-brand-navy-900">Pesan</h1>
+    <>
+      <PageHeader title="Pesan" description="Percakapan Anda dengan toko penjual." />
 
       {conversations.length === 0 ? (
-        <div className="rounded-lg border border-border bg-neutral-100 p-12 text-center">
-          <p className="text-neutral-500">Belum ada percakapan.</p>
-          <Link
-            href="/products"
-            className="mt-4 inline-block rounded-lg bg-brand-navy-900 px-4 py-2 font-medium text-white hover:bg-brand-navy-700"
-          >
-            Mulai Belanja
-          </Link>
-        </div>
+        <EmptyState
+          title="Belum ada percakapan"
+          description="Mulai percakapan dengan toko dari halaman produk untuk bertanya sebelum membeli."
+          action={
+            <Link className={buttonVariants({ variant: "primary" })} href="/products">
+              Mulai Belanja
+            </Link>
+          }
+        />
       ) : (
         <div className="space-y-2">
           {conversations.map((c) => (
             <Link
               key={c.id}
               href={`/chat/${c.id}`}
-              className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-neutral-100"
+              className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-navy-700"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-navy-900 text-sm font-medium text-white">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-navy-900 text-sm font-medium text-white">
                 {c.store.storeName?.[0] ?? "S"}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <p className="truncate text-sm font-medium">{c.store.storeName}</p>
                   {c.unreadCount > 0 && (
-                    <span className="ml-2 rounded-full bg-danger px-2 py-0.5 text-xs text-white">
+                    <Badge variant="danger" className="shrink-0">
                       {c.unreadCount}
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 {c.messages[0] && (
@@ -51,6 +55,6 @@ export default async function ChatListPage() {
           ))}
         </div>
       )}
-    </main>
+    </>
   );
 }
