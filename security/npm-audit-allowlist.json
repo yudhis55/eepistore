@@ -1,34 +1,3 @@
 {
-  "allowedAdvisories": {
-    "GHSA-c7w3-x93f-qmm8": {
-      "package": "nodemailer",
-      "reviewedOn": "2026-07-05",
-      "reason": "npm audit reports no fixed version. Eepistore only uses Nodemailer for password reset email with SMTP configuration from environment variables, constant subject, and no user-controlled raw headers or transport options."
-    },
-    "GHSA-vvjj-xcjg-gr5g": {
-      "package": "nodemailer",
-      "reviewedOn": "2026-07-05",
-      "reason": "npm audit reports no fixed version. Transport host and EHLO/HELO-related options are not user-controlled in the application."
-    },
-    "GHSA-268h-hp4c-crq3": {
-      "package": "nodemailer",
-      "reviewedOn": "2026-07-05",
-      "reason": "npm audit reports no fixed version. The application does not set user-controlled List-* header comments."
-    },
-    "GHSA-wqvq-jvpq-h66f": {
-      "package": "nodemailer",
-      "reviewedOn": "2026-07-05",
-      "reason": "npm audit reports no fixed version. The application does not use jsonTransport and does not expose transport configuration to users."
-    },
-    "GHSA-r7g4-qg5f-qqm2": {
-      "package": "nodemailer",
-      "reviewedOn": "2026-07-05",
-      "reason": "npm audit reports no fixed version. The application does not use Nodemailer OAuth2 token fetching."
-    },
-    "GHSA-p6gq-j5cr-w38f": {
-      "package": "nodemailer",
-      "reviewedOn": "2026-07-05",
-      "reason": "npm audit reports no fixed version. The application does not pass user-controlled raw message content to Nodemailer."
-    }
-  }
+  "allowedAdvisories": {}
 }

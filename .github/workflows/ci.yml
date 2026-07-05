@@ -294,7 +294,7 @@ jobs:
             --task-definition "$TASK_DEFINITION_ARN" \
             --count 1 \
             --started-by "github-${{ github.run_id }}-migration" \
-            --overrides '{"containerOverrides":[{"name":"app","command":["npx","prisma","migrate","deploy"]}]}' \
+            --overrides '{"containerOverrides":[{"name":"app","command":["node","node_modules/prisma/build/index.js","migrate","deploy"]}]}' \
             --query 'tasks[0].taskArn' \
             --output text)"
 
