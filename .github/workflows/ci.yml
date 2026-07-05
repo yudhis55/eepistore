@@ -30,7 +30,7 @@ jobs:
     name: Lint, Typecheck, Test
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: ${{ env.CI_DATABASE_URL }}
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
       AUTH_SECRET: ci-build-secret-not-used-at-runtime
       AUTH_URL: http://localhost:3000
       S3_BUCKET: eepistore-ci
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [quality]
     env:
-      DATABASE_URL: ${{ env.CI_DATABASE_URL }}
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
       AUTH_SECRET: ci-build-secret-not-used-at-runtime
       AUTH_URL: http://localhost:3000
       S3_BUCKET: eepistore-ci
