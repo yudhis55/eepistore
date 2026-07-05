@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { useState, useRef, useEffect } from "react";
+import { Suspense, useState, useRef, useEffect } from "react";
 import { SearchBar } from "@/components/search-bar";
 import { cn } from "@/lib/cn";
 
@@ -42,7 +42,9 @@ export function Navbar() {
 
         {/* Desktop search (inline, grows) */}
         <div className="hidden flex-1 md:block md:max-w-md">
-          <SearchBar />
+          <Suspense fallback={null}>
+            <SearchBar />
+          </Suspense>
         </div>
 
         <nav className="ml-auto flex items-center gap-1" aria-label="Utama">
@@ -152,7 +154,9 @@ export function Navbar() {
       {/* Mobile search drawer */}
       {mobileSearch && (
         <div className="border-t border-border px-4 py-3 md:hidden">
-          <SearchBar />
+          <Suspense fallback={null}>
+            <SearchBar />
+          </Suspense>
         </div>
       )}
     </header>

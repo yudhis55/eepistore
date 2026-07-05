@@ -1,10 +1,11 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../lib/generated/prisma/client";
+import { getDatabaseUrl } from "../lib/database-url";
 import argon2 from "argon2";
 
 async function main() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const adapter = new PrismaPg({ connectionString: getDatabaseUrl() });
   const prisma = new PrismaClient({ adapter });
 
   const hash = await argon2.hash("Password123", { type: argon2.argon2id });

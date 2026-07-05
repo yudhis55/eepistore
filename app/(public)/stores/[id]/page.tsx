@@ -29,7 +29,7 @@ export default async function StorefrontPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <PageHeader title={store.storeName} description={store.description} />
+      <PageHeader title={store.storeName} description={store.description ?? undefined} />
 
       {/* Store meta */}
       <Card className="mb-8 flex items-center gap-4 p-4">

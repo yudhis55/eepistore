@@ -6,6 +6,7 @@ import { z } from "zod";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+const privateFolders = new Set(["payments", "verifications"]);
 
 const uploadRequestSchema = z.object({
   filename: z
@@ -48,7 +49,9 @@ export async function createPresignedUploadUrl(
     expiresIn: 300, // 5 minutes
   });
 
-  const publicUrl = buildPublicUrl(key);
+  const publicUrl = isPrivateFolder(parsed.folder)
+    ? buildPrivateAccessUrl(key)
+    : buildPublicUrl(key);
 
   return { uploadUrl, key, publicUrl };
 }
@@ -83,9 +86,14 @@ export async function deleteObject(key: string): Promise<void> {
  * In prod (S3), this is the standard S3 URL pattern.
  */
 export function buildPublicUrl(key: string): string {
+  const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL;
   const endpoint = process.env.S3_ENDPOINT;
   const bucket = getBucketName();
   const region = process.env.S3_REGION ?? "us-east-1";
+
+  if (publicBaseUrl) {
+    return `${publicBaseUrl.replace(/\/$/, "")}/${key}`;
+  }
 
   if (endpoint) {
     // MinIO or S3-compatible: endpoint/bucket/key (path-style)
@@ -95,4 +103,15 @@ export function buildPublicUrl(key: string): string {
 
   // AWS S3 standard URL
   return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+}
+
+function isPrivateFolder(folder: UploadRequest["folder"]): boolean {
+  return privateFolders.has(folder);
+}
+
+function buildPrivateAccessUrl(key: string): string {
+  const baseUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const url = new URL("/api/uploads/private", baseUrl);
+  url.searchParams.set("key", key);
+  return url.toString();
 }

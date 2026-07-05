@@ -29,6 +29,10 @@ const nextConfig: NextConfig = {
         hostname: "**.amazonaws.com",
       },
       {
+        protocol: "https",
+        hostname: "**.cloudfront.net",
+      },
+      {
         // Seed/demo product imagery (remove when product photos come from S3 only).
         protocol: "https",
         hostname: "images.unsplash.com",
