@@ -15,6 +15,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Git does not preserve empty directories, but the runner stage always copies public assets.
+RUN mkdir -p public
+
 # Provide dummy values for build-time page data collection only
 # These are NOT used at runtime - real secrets are injected via env vars
 ARG BUILD_DATABASE_URL=postgresql://build:build@localhost:5432/build?schema=public

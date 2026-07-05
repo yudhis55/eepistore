@@ -100,7 +100,7 @@ jobs:
         continue-on-error: true
 
       - name: Run npm audit gate
-        run: npm audit --audit-level=high
+        run: node scripts/audit-gate.mjs npm-audit.json
 
       - name: Upload SCA evidence
         if: always()
