@@ -8,7 +8,7 @@
 | Tanggal        | 23 Juni 2026                                                                                |
 | Status         | Draft — Siap untuk fase eksekusi (AI-agent driven development)                              |
 | Pemilik Produk | (diisi pemilik proyek)                                                                      |
-| Target Stack   | Next.js (Fullstack) + PostgreSQL + AWS (ECS/Fargate, RDS, S3) + Terraform + CI/CD DevSecOps |
+| Target Stack   | Next.js (Fullstack) + PostgreSQL + AWS (ECS EC2/ASG, RDS, S3) + Terraform + CI/CD DevSecOps |
 
 ---
 
@@ -241,7 +241,7 @@ Status order (umum untuk kedua metode bayar):
 | Kategori            | Requirement                                                                                                  |
 | ------------------- | ------------------------------------------------------------------------------------------------------------ |
 | **Performance**     | LCP < 2.5s pada koneksi 4G; API response time < 300ms untuk operasi baca umum                                |
-| **Scalability**     | Aplikasi stateless (session via DB/JWT) agar container bisa di-scale horizontal di ECS/Fargate               |
+| **Scalability**     | Aplikasi stateless (session via DB/JWT) agar container bisa di-scale horizontal di ECS EC2/ASG               |
 | **Availability**    | Target uptime ≥ 99%; health check endpoint untuk load balancer                                               |
 | **Usability**       | Responsive penuh (mobile-first), aksesibilitas dasar (kontras warna WCAG AA, alt-text gambar produk)         |
 | **Maintainability** | Kode terstruktur modular (feature-based folder di Next.js), dokumentasi API, type-safety penuh (TypeScript)  |
@@ -310,7 +310,7 @@ Logo PENS bercirikan **biru tua (navy)** sebagai warna identitas institusi elekt
 
 - **Containerization:** Aplikasi Next.js di-build sebagai Docker image (multi-stage build untuk image kecil).
 - **Container Registry:** AWS ECR.
-- **Compute:** AWS ECS Fargate (serverless container) di belakang Application Load Balancer — dipilih karena cocok untuk solo-dev tanpa overhead manajemen EC2.
+- **Compute:** AWS ECS EC2 launch type dengan Auto Scaling Group di belakang Application Load Balancer, selaras dengan rancangan infrastruktur BAB 3.
 - **Networking:** VPC kustom (public subnet untuk ALB, private subnet untuk ECS task & RDS).
 - **DNS/TLS:** Route53 + ACM (HTTPS wajib end-to-end).
 - **IaC:** **Terraform**, modular per komponen (`network`, `rds`, `s3`, `ecs`, `iam`, `alb`, `cicd`) — state disimpan di S3 backend dengan DynamoDB lock table.
