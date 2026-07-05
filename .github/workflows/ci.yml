@@ -7,8 +7,8 @@ on:
     branches: [main, master]
   workflow_dispatch:
     inputs:
-      action:
-        description: "Manual action"
+      mode:
+        description: "Manual workflow mode"
         required: true
         default: "ci"
         type: choice
@@ -166,7 +166,7 @@ jobs:
     needs: [quality, sast, sca, build-and-scan]
     if: >-
       github.event_name == 'workflow_dispatch' &&
-      inputs.action == 'publish-image' &&
+      github.event.inputs.mode == 'publish-image' &&
       vars.AWS_REGION != '' &&
       vars.ECR_REPOSITORY != ''
     steps:
