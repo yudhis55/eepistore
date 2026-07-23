@@ -1,77 +1,93 @@
-# Deployment Checklist — EEPISTORE
+# Deployment Checklist - EEPISTORE
 
-## Dev → Prod Transition (Config-Driven, Zero Code Change)
+Dokumen ini menjelaskan kontrak deployment aplikasi `eepistore` sebagai
+fullstack Next.js container di ECS EC2/ASG. Perbedaan dev dan production harus
+berbasis konfigurasi, bukan perubahan kode aplikasi.
 
-The only difference between dev and prod is environment variables. No code changes needed.
+## Production Runtime Variables
 
-## Environment Variables (Prod)
+| Variable                | Local / Dev             | Production                                   |
+| ----------------------- | ----------------------- | -------------------------------------------- |
+| `NODE_ENV`              | `development`           | `production`                                 |
+| `AUTH_SECRET`           | dev secret              | Secrets Manager value                        |
+| `AUTH_URL`              | `http://localhost:3000` | `https://eepistore.web.id`                   |
+| `DATABASE_URL`          | local PostgreSQL URL    | omit; Terraform provides RDS Proxy variables |
+| `RDS_HOST`              | optional                | RDS Proxy endpoint                           |
+| `RDS_PORT`              | optional                | `5432`                                       |
+| `RDS_DATABASE`          | optional                | app database name                            |
+| `RDS_USERNAME`          | optional                | Secrets Manager value                        |
+| `RDS_PASSWORD`          | optional                | Secrets Manager value                        |
+| `S3_ENDPOINT`           | MinIO endpoint          | omit; use AWS default                        |
+| `S3_PUBLIC_BUCKET`      | local public bucket     | Terraform public-media bucket                |
+| `S3_PRIVATE_BUCKET`     | local private bucket    | Terraform private-documents bucket           |
+| `S3_REGION`             | local/minio region      | `ap-southeast-3`                             |
+| `S3_PUBLIC_BASE_URL`    | local MinIO public URL  | `https://media.eepistore.web.id`             |
+| `AWS_ACCESS_KEY_ID`     | local MinIO only        | omit; use ECS task role                      |
+| `AWS_SECRET_ACCESS_KEY` | local MinIO only        | omit; use ECS task role                      |
+| `S3_FORCE_PATH_STYLE`   | `true` for MinIO        | omit                                         |
+| `SMTP_HOST`             | local mail server       | configured SMTP provider                     |
+| `SMTP_PORT`             | local mail port         | configured SMTP port                         |
+| `SMTP_USER`             | optional                | secret if email is enabled                   |
+| `SMTP_PASS`             | optional                | secret if email is enabled                   |
+| `SMTP_FROM`             | local sender            | configured sender domain                     |
 
-| Variable                | Dev Value                                                   | Prod Value                 |
-| ----------------------- | ----------------------------------------------------------- | -------------------------- |
-| `NODE_ENV`              | development                                                 | production                 |
-| `DATABASE_URL`          | `postgresql://eepistore:eepistore@localhost:5433/eepistore` | RDS connection string      |
-| `AUTH_SECRET`           | dev secret                                                  | `openssl rand -base64 32`  |
-| `AUTH_URL`              | `http://localhost:3000`                                     | `https://eepistore.domain` |
-| `S3_ENDPOINT`           | `http://localhost:9000` (MinIO)                             | empty (AWS default)        |
-| `S3_BUCKET`             | eepistore                                                   | prod bucket name           |
-| `S3_REGION`             | us-east-1                                                   | AWS region                 |
-| `S3_PUBLIC_BASE_URL`    | `http://localhost:9000/eepistore`                           | CloudFront media URL       |
-| `AWS_ACCESS_KEY_ID`     | minioadmin                                                  | omit; use ECS task role    |
-| `AWS_SECRET_ACCESS_KEY` | minioadmin                                                  | omit; use ECS task role    |
-| `S3_FORCE_PATH_STYLE`   | true                                                        | false (or omit)            |
-| `SMTP_HOST`             | localhost                                                   | SES SMTP endpoint          |
-| `SMTP_PORT`             | 1025                                                        | 587                        |
-| `SMTP_USER`             | (empty)                                                     | SES SMTP username          |
-| `SMTP_PASS`             | (empty)                                                     | SES SMTP password          |
-| `SMTP_FROM`             | noreply@eepistore.local                                     | noreply@eepistore.domain   |
+`RDS_HOST` must point to RDS Proxy, not directly to the RDS instance. AWS static
+credentials must not be provided in ECS; S3 access must come from the task role.
 
 ## Pre-Deployment Steps
 
-1. **Database Migration**
-   - Run `npx prisma migrate deploy` against prod RDS
-   - Verify all migrations applied
-
-2. **Seed Admin User**
-   - Create admin user manually or via seed script
-   - Change default admin password immediately
-
-3. **S3 Bucket Setup**
-   - Create private bucket with encryption and versioning
-   - Block public access
-   - Serve public media through CloudFront Origin Access Control
-   - Keep payment proof and verification documents private
-
-4. **Docker Image**
-   - Build: `docker build -f docker/Dockerfile -t eepistore:<commit-sha> .`
-   - Verify non-root user (nextjs:1001)
-   - Verify standalone output
-
-5. **CI/CD Pipeline**
-   - All gates must pass: lint, typecheck, test, SAST, SCA, Trivy scan
-   - No critical vulnerabilities
+1. Ensure ECR repository `eepistore-repo` exists. After a full Terraform
+   destroy, infra must create ECR again before this app can publish a new image.
+2. Publish the scanned Docker image from GitHub Actions and retain its digest,
+   SBOM, and provenance attestation.
+3. Pass the resulting immutable digest URI to infra as `TF_VAR_APP_IMAGE_URI`.
+4. Run Terraform plan and approve apply only after reviewing the plan artifact.
+5. Terraform is the sole owner of the ECS task definition and service.
+6. Run database migration as an explicit ECS one-off task after infrastructure
+   apply and before accepting runtime evidence.
 
 ## Production Checklist
 
-- [ ] HTTPS enabled (TLS 1.2+ via ACM/ALB)
-- [ ] Security headers active (CSP, HSTS, X-Frame-Options)
-- [ ] Rate limiting active (login, register, upload, checkout)
-- [ ] Database connection pooling configured
-- [ ] S3 bucket encryption enabled
-- [ ] Public media served through CloudFront, not public S3
-- [ ] Secrets in AWS Secrets Manager / SSM (not in env files)
-- [ ] Health check endpoint (`/api/health`) responding 200
-- [ ] Readiness endpoint (`/api/readiness`) reports database and storage checks
-- [ ] Graceful shutdown handling
-- [ ] Log aggregation to CloudWatch
-- [ ] Backup strategy (RDS automated backups)
+- [ ] HTTPS enabled with ACM and ALB TLS listener.
+- [ ] HTTP redirects to HTTPS.
+- [ ] WAF attached to ALB.
+- [ ] App image uses immutable commit SHA.
+- [ ] ECS task runs as non-root and uses read-only root filesystem with `/tmp`
+      tmpfs.
+- [ ] `/api/health` responds 200 for ALB liveness.
+- [ ] `/api/readiness` responds JSON `status=ok` for deployment smoke checks.
+- [ ] Database traffic goes through RDS Proxy.
+- [ ] Public media is served through CloudFront OAC, not public S3.
+- [ ] Private objects remain accessible only through authorized app routes.
+- [ ] Logs are shipped to CloudWatch.
+- [ ] RDS automated backup is enabled.
+- [ ] No static AWS credentials are present in ECS runtime environment.
 
-## Graceful Shutdown
+## Thesis Evidence Flow
 
-The Next.js standalone server handles SIGTERM gracefully.
-ECS service deployments send SIGTERM to the container before replacing tasks.
+1. Capture app quality, SAST, SCA, Docker build, image scan, and image publish
+   artifacts.
+2. Capture Terraform fmt, validate, TFLint, Trivy, Checkov, plan, apply, and
+   post-apply verification artifacts.
+3. Capture runtime smoke evidence for HTTPS, redirect, health, readiness, login,
+   media upload, and private object authorization.
+4. Capture ZAP and k6 artifacts while the stack is live.
+5. Capture CloudWatch and AWS resource evidence.
+6. Destroy the stack after evidence is safely captured to control AWS cost.
 
-## Scaling Considerations
+## Current Evidence Status
 
-- ECS EC2/ASG: run at least two ECS container instances across two AZs and scale service desired count based on CPU/memory
-- RDS: db.t3.micro for dev, upgrade based on connection count
-- Rate limiter is in-memory; for multi-instance, migrate to Redis-backed
+- The previous baseline image is historical evidence only. A new digest must be
+  published after this remediation before the next apply.
+- Terraform apply baseline succeeded once with strict readiness checks.
+- The AWS stack has been destroyed for cost control.
+- ZAP, k6, functional smoke, and monitoring evidence are still required for the
+  final BAB 4 package.
+
+## Scaling Notes
+
+- ECS EC2/ASG should run across at least two Availability Zones during evidence
+  collection.
+- Rate limits are persisted in PostgreSQL so they remain effective across
+  multiple ECS tasks. Cleanup of expired buckets is an operational maintenance
+  concern.

@@ -15,7 +15,8 @@ Environment wajib:
 - `RDS_DATABASE`
 - `RDS_USERNAME` dari Secrets Manager
 - `RDS_PASSWORD` dari Secrets Manager
-- `S3_BUCKET`
+- `S3_PUBLIC_BUCKET`
+- `S3_PRIVATE_BUCKET`
 - `S3_REGION`
 - `S3_PUBLIC_BASE_URL` untuk URL media publik melalui CloudFront
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`
@@ -32,19 +33,20 @@ Environment opsional untuk lokal:
 ## Storage Policy
 
 - Folder `products`, `avatars`, dan `banners` adalah media publik dan harus
-  disajikan melalui CloudFront.
+  disimpan di bucket media dan disajikan melalui CloudFront.
 - Folder `payments` dan `verifications` adalah objek sensitif dan tidak boleh
-  menghasilkan URL publik langsung.
+  keluar dari bucket dokumen privat atau menghasilkan URL publik langsung.
 - Browser upload memakai presigned PUT URL.
+- Server mengonfirmasi key, ukuran, dan magic bytes object setelah upload.
 - Download objek sensitif harus lewat route aplikasi yang melakukan authorization
   berbasis relasi data: buyer pemilik order, seller pemilik store pada order,
   admin, atau pemilik pengajuan verifikasi.
 
 ## Deployment Policy
 
-- Image ECS memakai immutable commit SHA.
-- `latest` boleh dipush untuk debugging, tetapi tidak boleh menjadi sumber
-  deploy production.
+- Image ECS memakai immutable digest yang berasal dari image yang sudah dipindai.
+- Pipeline aplikasi tidak mengubah ECS; Terraform memiliki task definition dan
+  ECS service.
 - Migration database dijalankan sebagai step eksplisit sebelum traffic produksi
   dialihkan. Image runtime harus menyediakan command `npx prisma migrate deploy`.
 - `/api/health` adalah liveness check ringan untuk ALB rolling deployment.
@@ -55,9 +57,19 @@ Environment opsional untuk lokal:
 Pipeline harus menyimpan:
 
 - build/test logs,
-- SAST/SCA/container scan,
-- deployment event,
+- SAST/SCA/container scan, SBOM, dan provenance attestation,
+- Terraform apply, migration task, dan ECS deployment event,
 - ZAP report,
 - k6/JMeter summary,
 - CloudWatch metrics/logs,
 - post-apply verification output.
+
+## Current Evidence Status
+
+- Image publish baseline terbaru memakai commit SHA
+  `18fb24f6d419722841f587cbf4355aa2419c2dbf`.
+- Terraform apply baseline pernah berhasil dan readiness JSON sudah valid.
+- Stack AWS sudah di-destroy untuk hemat biaya, jadi evidence runtime final
+  harus diambil ulang saat stack dihidupkan kembali.
+- ZAP, k6, login/basic flow, upload media, private object access, dan monitoring
+  evidence belum boleh diklaim final sampai artifact tersedia.
