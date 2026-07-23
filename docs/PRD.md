@@ -313,7 +313,7 @@ Logo PENS bercirikan **biru tua (navy)** sebagai warna identitas institusi elekt
 - **Compute:** AWS ECS EC2 launch type dengan Auto Scaling Group di belakang Application Load Balancer, selaras dengan rancangan infrastruktur BAB 3.
 - **Networking:** VPC kustom (public subnet untuk ALB, private subnet untuk ECS task & RDS).
 - **DNS/TLS:** Route53 + ACM (HTTPS wajib end-to-end).
-- **IaC:** **Terraform**, modular per komponen (`network`, `rds`, `s3`, `ecs`, `iam`, `alb`, `cicd`) — state disimpan di S3 backend dengan DynamoDB lock table.
+- **IaC:** **Terraform**, modular per komponen (`network`, `rds`, `s3`, `ecs`, `iam`, `alb`, `cicd`) — state disimpan di S3 backend terenkripsi dengan native lockfile.
 - **Secrets:** AWS Secrets Manager / SSM Parameter Store — tidak ada credential hardcoded atau di `.env` yang masuk repo.
 
 ### 10.4 CI/CD & DevSecOps Pipeline (gambaran tahapan)
