@@ -6,6 +6,8 @@ const png = Buffer.from(
   "base64",
 );
 
+test.describe.configure({ retries: 0 });
+
 test("role-aware functional and storage checks", async ({ browser, baseURL }) => {
   const fixture = JSON.parse(
     fs.readFileSync(process.env.EXPERIMENT_FIXTURE_FILE ?? "runtime-evidence/fixture.json", "utf8"),
@@ -57,7 +59,8 @@ test("role-aware functional and storage checks", async ({ browser, baseURL }) =>
     `${baseURL}/api/uploads/private?key=..%2Fpayments%2Finvalid.png`,
     { maxRedirects: 0 },
   );
-  expect(traversal.status()).toBe(400);
+  // WAF blocks traversal before the app-level key validator can return 400.
+  expect(traversal.status()).toBe(403);
 
   await Promise.all([buyer.close(), otherBuyer.close(), seller.close(), admin.close()]);
 });
