@@ -48,6 +48,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/lib/database-url.ts ./lib/database-url.ts
 COPY --from=builder --chown=nextjs:nodejs /app/lib/generated ./lib/generated
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/experiment-fixtures.mts ./scripts/experiment-fixtures.mts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/package-lock.json ./package-lock.json
 COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules

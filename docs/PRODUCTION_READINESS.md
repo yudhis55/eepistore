@@ -66,10 +66,12 @@ Pipeline harus menyimpan:
 
 ## Current Evidence Status
 
-- Image publish baseline terbaru memakai commit SHA
-  `18fb24f6d419722841f587cbf4355aa2419c2dbf`.
+- Image publish run `29983090390` dan digest `sha256:46834d...` merupakan
+  baseline sebelum utility eksperimen ditambahkan. Image harus dipublish ulang
+  dari commit aplikasi terbaru.
 - Terraform apply baseline pernah berhasil dan readiness JSON sudah valid.
 - Stack AWS sudah di-destroy untuk hemat biaya, jadi evidence runtime final
   harus diambil ulang saat stack dihidupkan kembali.
-- ZAP, k6, login/basic flow, upload media, private object access, dan monitoring
-  evidence belum boleh diklaim final sampai artifact tersedia.
+- Workflow final di repository infra sudah disiapkan untuk Playwright,
+  bounded ZAP, tiga trial k6, CloudWatch, dan cleanup. Hasilnya belum boleh
+  diklaim final sampai artifact canonical berstatus `final`.
