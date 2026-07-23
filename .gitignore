@@ -7,6 +7,10 @@
 /.next/
 /out/
 next-env.d.ts
+playwright-report/
+test-results/
+runtime-evidence/
+.experiment/
 
 # production
 /build

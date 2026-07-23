@@ -1,0 +1,40 @@
+env:
+  contexts:
+    - name: eepistore-public
+      urls:
+        - "{{TARGET_URL}}"
+      includePaths:
+        - "{{TARGET_REGEX}}.*"
+      excludePaths:
+        - "{{TARGET_REGEX}}/api/(admin|auth|chat|orders|uploads).*"
+        - "{{TARGET_REGEX}}/(admin|dashboard|orders).*"
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  - type: spider
+    parameters:
+      context: eepistore-public
+      maxDuration: 2
+      maxDepth: 5
+      maxChildren: 20
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 3
+  - type: activeScan
+    parameters:
+      context: eepistore-public
+      maxRuleDurationInMins: 1
+      maxScanDurationInMins: 5
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: /zap/wrk/runtime-evidence
+      reportFile: zap-report.json
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: /zap/wrk/runtime-evidence
+      reportFile: zap-report.html

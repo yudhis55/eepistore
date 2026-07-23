@@ -75,14 +75,21 @@ credentials must not be provided in ECS; S3 access must come from the task role.
 5. Capture CloudWatch and AWS resource evidence.
 6. Destroy the stack after evidence is safely captured to control AWS cost.
 
+Runtime evidence is orchestrated by the infra repository workflow
+`Final Experiment Evidence`. The application repository owns source quality,
+security scanning, and immutable image publication; it does not own Terraform,
+ECS deployment, or the final runtime experiment.
+
 ## Current Evidence Status
 
-- The previous baseline image is historical evidence only. A new digest must be
-  published after this remediation before the next apply.
+- Image digest `sha256:46834d...` is a pre-automation baseline. A new digest must
+  be published because the experiment fixture and Playwright source have
+  changed.
 - Terraform apply baseline succeeded once with strict readiness checks.
 - The AWS stack has been destroyed for cost control.
-- ZAP, k6, functional smoke, and monitoring evidence are still required for the
-  final BAB 4 package.
+- Playwright, bounded ZAP, three k6 trials, CloudWatch collection, canonical
+  aggregation, and cleanup are implemented but still require live evidence
+  after a controlled apply.
 
 ## Scaling Notes
 
