@@ -1,11 +1,10 @@
-import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { auth } from "@/auth";
 
 const publicRoutes = ["/", "/login", "/register", "/reset-password", "/products"];
 const publicApiRoutes = ["/api/auth", "/api/health", "/api/readiness"];
 
-export async function proxy(request: NextRequest) {
+export default auth((request) => {
   const { pathname } = request.nextUrl;
 
   // Allow public API routes
@@ -19,26 +18,30 @@ export async function proxy(request: NextRequest) {
   }
 
   // Check auth for protected routes
-  const token = await getToken({ req: request, secret: process.env.AUTH_SECRET });
+  const session = request.auth;
 
-  if (!token || token.suspended) {
+  if (!session?.user || session.user.suspended) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // RBAC: seller-only routes
-  if (pathname.startsWith("/dashboard") && token.role !== "SELLER" && token.role !== "ADMIN") {
+  if (
+    pathname.startsWith("/dashboard") &&
+    session.user.role !== "SELLER" &&
+    session.user.role !== "ADMIN"
+  ) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
   // RBAC: admin-only routes
-  if (pathname.startsWith("/admin") && token.role !== "ADMIN") {
+  if (pathname.startsWith("/admin") && session.user.role !== "ADMIN") {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
   return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.).*)"],

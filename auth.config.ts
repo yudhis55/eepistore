@@ -58,7 +58,7 @@ export const authConfig = {
         token.role = (user as { role: string }).role;
         token.id = user.id;
       }
-      if (token.id) {
+      if (typeof token.id === "string") {
         const currentUser = await prisma.user.findUnique({
           where: { id: token.id },
           select: { role: true, suspendedAt: true },
