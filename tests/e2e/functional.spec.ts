@@ -75,6 +75,7 @@ async function authenticated(browser: Browser, email: string): Promise<BrowserCo
 
 async function upload(context: BrowserContext, folder: "products" | "payments", filename: string) {
   const presign = await context.request.post("/api/uploads/presign", {
+    maxRedirects: 0,
     data: {
       filename,
       contentType: "image/png",
@@ -99,7 +100,7 @@ async function upload(context: BrowserContext, folder: "products" | "payments", 
 }
 
 async function expectStatus(context: BrowserContext, path: string, status: number) {
-  const response = await context.request.get(path);
+  const response = await context.request.get(path, { maxRedirects: 0 });
   expect(response.status()).toBe(status);
 }
 
