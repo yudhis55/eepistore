@@ -2,12 +2,12 @@ env:
   contexts:
     - name: eepistore-public
       urls:
-        - "{{TARGET_URL}}"
+        - __TARGET_URL_JSON__
       includePaths:
-        - "{{TARGET_REGEX}}.*"
+        - __TARGET_REGEX_JSON__
       excludePaths:
-        - "{{TARGET_REGEX}}/api/(admin|auth|chat|orders|uploads).*"
-        - "{{TARGET_REGEX}}/(admin|dashboard|orders).*"
+        - __STATE_CHANGING_REGEX_JSON__
+        - __AUTHENTICATED_PAGE_REGEX_JSON__
   parameters:
     failOnError: true
     failOnWarning: false
