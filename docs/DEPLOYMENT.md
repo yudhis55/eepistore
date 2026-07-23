@@ -82,9 +82,11 @@ ECS deployment, or the final runtime experiment.
 
 ## Current Evidence Status
 
-- Image digest `sha256:46834d...` is a pre-automation baseline. A new digest must
-  be published because the experiment fixture and Playwright source have
-  changed.
+- The latest experiment-automation source has passed GitHub quality, security,
+  image scanning, SBOM, and provenance gates. Workflow maintenance changes the
+  source commit, so publish a fresh digest after that maintenance reaches
+  `main`; use the `published-image` artifact rather than a digest copied into
+  this document.
 - Terraform apply baseline succeeded once with strict readiness checks.
 - The AWS stack has been destroyed for cost control.
 - Playwright, bounded ZAP, three k6 trials, CloudWatch collection, canonical
