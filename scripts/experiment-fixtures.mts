@@ -237,10 +237,27 @@ async function cleanup(prisma: PrismaClient, input: FixtureConfig) {
     await tx.cartItem.deleteMany({ where: { userId: { in: userIds } } });
     await tx.user.deleteMany({ where: { id: { in: userIds } } });
 
+    const [remainingUsers, remainingStores, remainingOrders, remainingProducts] = await Promise.all(
+      [
+        tx.user.count({ where: { id: { in: userIds } } }),
+        tx.storeProfile.count({ where: { id: { in: storeIds } } }),
+        tx.order.count({
+          where: {
+            OR: [{ buyerId: { in: userIds } }, { storeId: { in: storeIds } }],
+          },
+        }),
+        tx.product.count({ where: { storeId: { in: storeIds } } }),
+      ],
+    );
+
     return {
       experimentId: input.experimentId,
       removedUsers: userIds.length,
       removedStores: storeIds.length,
+      remainingUsers,
+      remainingStores,
+      remainingOrders,
+      remainingProducts,
     };
   });
 }
