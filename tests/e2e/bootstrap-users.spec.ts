@@ -19,12 +19,14 @@ test("register isolated experiment accounts", async ({ browser }) => {
     await page.locator('input[name="password"]').fill(password);
     await page.locator('input[name="confirmPassword"]').fill(password);
     await page.getByRole("button", { name: "Daftar" }).click();
-    await Promise.race([
-      page.waitForURL(/\/$/),
-      page.getByRole("alert").waitFor({ state: "visible" }),
-    ]);
+    const formAlert = page.locator('p[role="alert"]');
+    await Promise.race([page.waitForURL(/\/$/), formAlert.waitFor({ state: "visible" })]);
 
     if (!/\/$/.test(page.url())) {
+      const registrationError = (await formAlert.textContent())?.trim();
+      if (!registrationError) {
+        throw new Error("Registration stopped without a form error or successful redirect");
+      }
       await page.goto("/login");
       await page.getByLabel("Email").fill(required(emailVariable));
       await page.getByLabel("Password").fill(password);
