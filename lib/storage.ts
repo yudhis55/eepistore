@@ -1,11 +1,17 @@
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { getS3Client, getBucketName } from "@/lib/s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
+import { randomUUID } from "node:crypto";
+import { getPrivateBucketName, getPublicBucketName, getS3Client } from "@/lib/s3";
 import { z } from "zod";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"] as const;
 const privateFolders = new Set(["payments", "verifications"]);
 
 const uploadRequestSchema = z.object({
@@ -35,11 +41,11 @@ export async function createPresignedUploadUrl(
     throw new Error(`File size exceeds limit of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
   }
 
-  const ext = parsed.filename.split(".").pop() ?? "jpg";
-  const key = `${parsed.folder}/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+  const ext = parsed.filename.split(".").pop()?.toLowerCase() ?? "jpg";
+  const key = `${parsed.folder}/${userId}/${randomUUID()}.${ext}`;
 
   const command = new PutObjectCommand({
-    Bucket: getBucketName(),
+    Bucket: bucketForFolder(parsed.folder),
     Key: key,
     ContentType: parsed.contentType,
     ContentLength: fileSize,
@@ -61,7 +67,7 @@ export async function createPresignedUploadUrl(
  */
 export async function createPresignedDownloadUrl(key: string, expiresIn = 3600): Promise<string> {
   const command = new GetObjectCommand({
-    Bucket: getBucketName(),
+    Bucket: getPrivateBucketName(),
     Key: key,
   });
 
@@ -72,8 +78,9 @@ export async function createPresignedDownloadUrl(key: string, expiresIn = 3600):
  * Delete an object from S3/MinIO.
  */
 export async function deleteObject(key: string): Promise<void> {
+  const folder = uploadRequestSchema.shape.folder.parse(key.split("/")[0]);
   const command = new DeleteObjectCommand({
-    Bucket: getBucketName(),
+    Bucket: bucketForFolder(folder),
     Key: key,
   });
 
@@ -88,7 +95,7 @@ export async function deleteObject(key: string): Promise<void> {
 export function buildPublicUrl(key: string): string {
   const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL;
   const endpoint = process.env.S3_ENDPOINT;
-  const bucket = getBucketName();
+  const bucket = getPublicBucketName();
   const region = process.env.S3_REGION ?? "us-east-1";
 
   if (publicBaseUrl) {
@@ -105,8 +112,82 @@ export function buildPublicUrl(key: string): string {
   return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
 }
 
+export function isOwnedPublicMediaUrl(url: string, folder: "products" | "avatars", userId: string) {
+  try {
+    const path = decodeURIComponent(new URL(url).pathname);
+    return path
+      .split("/")
+      .filter(Boolean)
+      .some((segment, index, parts) => {
+        return segment === folder && parts[index + 1] === userId && parts.length === index + 3;
+      });
+  } catch {
+    return false;
+  }
+}
+
 function isPrivateFolder(folder: UploadRequest["folder"]): boolean {
   return privateFolders.has(folder);
+}
+
+function bucketForFolder(folder: UploadRequest["folder"]): string {
+  return isPrivateFolder(folder) ? getPrivateBucketName() : getPublicBucketName();
+}
+
+export async function confirmUploadedImage(
+  key: string,
+  expectedContentType: UploadRequest["contentType"],
+  userId: string,
+): Promise<string> {
+  const parts = key.split("/");
+  const folder = uploadRequestSchema.shape.folder.parse(parts[0]);
+
+  if (parts.length !== 3 || parts[1] !== userId || key.includes("..") || key.includes("\\")) {
+    throw new Error("Invalid upload key");
+  }
+
+  const Bucket = bucketForFolder(folder);
+  const s3 = getS3Client();
+
+  try {
+    const head = await s3.send(new HeadObjectCommand({ Bucket, Key: key }));
+    if (!head.ContentLength || head.ContentLength > MAX_FILE_SIZE) {
+      throw new Error("Invalid uploaded file size");
+    }
+
+    const object = await s3.send(
+      new GetObjectCommand({
+        Bucket,
+        Key: key,
+        Range: "bytes=0-15",
+      }),
+    );
+    const bytes = await object.Body?.transformToByteArray();
+    if (!bytes || detectImageMime(bytes) !== expectedContentType) {
+      throw new Error("Uploaded file content does not match its declared image type");
+    }
+  } catch (error) {
+    await s3.send(new DeleteObjectCommand({ Bucket, Key: key })).catch(() => undefined);
+    throw error;
+  }
+
+  return isPrivateFolder(folder) ? buildPrivateAccessUrl(key) : buildPublicUrl(key);
+}
+
+function detectImageMime(bytes: Uint8Array): UploadRequest["contentType"] | null {
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return "image/png";
+  }
+  if (
+    String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+    String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return null;
 }
 
 function buildPrivateAccessUrl(key: string): string {

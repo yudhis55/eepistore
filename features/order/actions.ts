@@ -79,7 +79,7 @@ export async function rejectPaymentAction(
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { store: { select: { userId: true } } },
+    include: { store: { select: { userId: true } }, items: true },
   });
 
   if (!order) return { error: "Order tidak ditemukan" };
@@ -92,34 +92,36 @@ export async function rejectPaymentAction(
     return { error: "Order tidak dalam status menunggu konfirmasi" };
   }
 
-  await prisma.$transaction([
-    prisma.payment.update({
+  await prisma.$transaction(async (tx) => {
+    const changed = await tx.order.updateMany({
+      where: { id: orderId, status: "MENUNGGU_KONFIRMASI" },
+      data: { status: "DIBATALKAN", cancelReason: reason },
+    });
+    if (changed.count !== 1) throw new Error("Status order sudah berubah");
+
+    await tx.payment.update({
       where: { orderId },
       data: { status: "REJECTED" },
-    }),
-    prisma.order.update({
-      where: { id: orderId },
-      data: { status: "DIBATALKAN", cancelReason: reason },
-    }),
-  ]);
-
-  // Restock items
-  const items = await prisma.orderItem.findMany({ where: { orderId } });
-  for (const item of items) {
-    await prisma.product.update({
-      where: { id: item.productId },
-      data: { stock: { increment: item.quantity } },
     });
-  }
-
-  await prisma.notification.create({
-    data: {
-      userId: order.buyerId,
-      type: "PAYMENT_REJECTED",
-      title: `Pembayaran ditolak untuk order #${orderId.slice(-8)}`,
-      payload: { orderId, reason },
-      isRead: false,
-    },
+    for (const item of order.items) {
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { stock: { increment: item.quantity } },
+      });
+      await tx.product.updateMany({
+        where: { id: item.productId, status: "OUT_OF_STOCK" },
+        data: { status: "ACTIVE" },
+      });
+    }
+    await tx.notification.create({
+      data: {
+        userId: order.buyerId,
+        type: "PAYMENT_REJECTED",
+        title: `Pembayaran ditolak untuk order #${orderId.slice(-8)}`,
+        payload: { orderId, reason },
+        isRead: false,
+      },
+    });
   });
 
   revalidatePath("/dashboard/orders");
@@ -223,6 +225,7 @@ export async function confirmReceivedAction(orderId: string): Promise<OrderActio
 
   const order = await prisma.order.findFirst({
     where: { id: orderId, buyerId: session.user.id },
+    include: { store: { select: { userId: true } } },
   });
 
   if (!order) return { error: "Order tidak ditemukan" };
@@ -236,17 +239,15 @@ export async function confirmReceivedAction(orderId: string): Promise<OrderActio
     data: { status: "SELESAI" },
   });
 
-  await prisma.notification
-    .create({
-      data: {
-        userId: order.storeId ? order.storeId : "",
-        type: "ORDER_COMPLETED",
-        title: `Order #${orderId.slice(-8)} selesai`,
-        payload: { orderId },
-        isRead: false,
-      },
-    })
-    .catch(() => {});
+  await prisma.notification.create({
+    data: {
+      userId: order.store.userId,
+      type: "ORDER_COMPLETED",
+      title: `Order #${orderId.slice(-8)} selesai`,
+      payload: { orderId },
+      isRead: false,
+    },
+  });
 
   revalidatePath("/orders");
   return { success: true };
@@ -268,16 +269,21 @@ export async function cancelOrderAction(orderId: string): Promise<OrderActionSta
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id: orderId },
+    const changed = await tx.order.updateMany({
+      where: { id: orderId, status: "MENUNGGU_PEMBAYARAN" },
       data: { status: "DIBATALKAN", cancelReason: "Dibatalkan oleh buyer" },
     });
+    if (changed.count !== 1) throw new Error("Status order sudah berubah");
 
     // Restock
     for (const item of order.items) {
       await tx.product.update({
         where: { id: item.productId },
         data: { stock: { increment: item.quantity } },
+      });
+      await tx.product.updateMany({
+        where: { id: item.productId, status: "OUT_OF_STOCK" },
+        data: { status: "ACTIVE" },
       });
     }
   });

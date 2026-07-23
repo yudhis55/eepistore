@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import argon2 from "argon2";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validators/auth";
+import { loginLimiter } from "@/lib/rate-limit";
 
 export const authConfig = {
   providers: [
@@ -15,6 +16,9 @@ export const authConfig = {
       async authorize(credentials) {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) {
+          return null;
+        }
+        if (!(await loginLimiter.check(parsed.data.email))) {
           return null;
         }
 
@@ -54,12 +58,21 @@ export const authConfig = {
         token.role = (user as { role: string }).role;
         token.id = user.id;
       }
+      if (token.id) {
+        const currentUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { role: true, suspendedAt: true },
+        });
+        token.role = currentUser?.role;
+        token.suspended = !currentUser || currentUser.suspendedAt !== null;
+      }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.suspended = token.suspended === true;
       }
       return session;
     },

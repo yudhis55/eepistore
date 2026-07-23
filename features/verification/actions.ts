@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, requireRole } from "@/lib/rbac";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { parsePrivateObjectUrl } from "@/lib/private-object-access";
 
 export type VerificationActionState = {
   error?: string;
@@ -34,6 +35,15 @@ export async function submitVerificationAction(
     return { error: parsed.error.issues[0]?.message ?? "Input tidak valid" };
   }
 
+  const verificationObject = parsePrivateObjectUrl(parsed.data.ktmImageUrl);
+  if (
+    !verificationObject ||
+    verificationObject.folder !== "verifications" ||
+    verificationObject.ownerId !== session.user.id
+  ) {
+    return { error: "Dokumen verifikasi tidak valid" };
+  }
+
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
 
   if (!user) return { error: "User tidak ditemukan" };
@@ -47,10 +57,12 @@ export async function submitVerificationAction(
     data: {
       nim: parsed.data.nim,
       verificationStatus: "PENDING",
+      verificationObjectKey: verificationObject.key,
     },
   });
 
-  // Store KTM image in a notification record for admin to access
+  // Keep a notification for the user-facing workflow; object ownership is
+  // stored explicitly on User and is not inferred from this JSON payload.
   await prisma.notification.create({
     data: {
       userId: session.user.id,

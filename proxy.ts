@@ -21,7 +21,7 @@ export async function proxy(request: NextRequest) {
   // Check auth for protected routes
   const token = await getToken({ req: request, secret: process.env.AUTH_SECRET });
 
-  if (!token) {
+  if (!token || token.suspended) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);

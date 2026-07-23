@@ -59,7 +59,7 @@ export function FileUpload({
         const body = await presignRes.json().catch(() => ({}));
         throw new Error(body.error ?? "Gagal membuat URL upload");
       }
-      const { uploadUrl, publicUrl } = await presignRes.json();
+      const { uploadUrl, key } = await presignRes.json();
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -77,7 +77,17 @@ export function FileUpload({
         xhr.onerror = () => reject(new Error("Gagal upload file (jaringan)"));
         xhr.send(file);
       });
-      return publicUrl;
+      const confirmRes = await fetch("/api/uploads/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, contentType: file.type }),
+      });
+      if (!confirmRes.ok) {
+        const body = await confirmRes.json().catch(() => ({}));
+        throw new Error(body.error ?? "File upload tidak lolos validasi");
+      }
+      const { objectUrl } = await confirmRes.json();
+      return objectUrl;
     },
     [folder],
   );

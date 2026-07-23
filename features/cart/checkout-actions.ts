@@ -4,6 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/rbac";
 import { checkoutLimiter } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const checkoutSchema = z.object({
+  checkoutToken: z.string().uuid(),
+  deliveryMethod: z.enum(["PICKUP_COD", "MANUAL_DELIVERY"]),
+  paymentMethod: z.enum(["MANUAL_TRANSFER", "COD"]),
+  notes: z.string().trim().max(500).nullable(),
+});
 
 export type CheckoutResult = {
   success: boolean;
@@ -17,24 +25,27 @@ export async function checkoutAction(
 ): Promise<CheckoutResult> {
   const session = await requireAuth();
 
-  if (!checkoutLimiter.check(session.user.id)) {
+  if (!(await checkoutLimiter.check(session.user.id))) {
     return { success: false, error: "Terlalu banyak checkout. Coba lagi nanti." };
   }
 
-  const deliveryMethod = formData.get("deliveryMethod") as string;
-  const paymentMethod = formData.get("paymentMethod") as string;
-  const notes = (formData.get("notes") as string) || null;
-
-  if (!deliveryMethod || !paymentMethod) {
-    return { success: false, error: "Metode pengiriman dan pembayaran wajib dipilih" };
+  const input = checkoutSchema.safeParse({
+    checkoutToken: formData.get("checkoutToken"),
+    deliveryMethod: formData.get("deliveryMethod"),
+    paymentMethod: formData.get("paymentMethod"),
+    notes: (formData.get("notes") as string) || null,
+  });
+  if (!input.success) {
+    return { success: false, error: "Data checkout tidak valid" };
   }
+  const { checkoutToken, deliveryMethod, paymentMethod, notes } = input.data;
 
-  if (!["PICKUP_COD", "MANUAL_DELIVERY"].includes(deliveryMethod)) {
-    return { success: false, error: "Metode pengiriman tidak valid" };
-  }
-
-  if (!["MANUAL_TRANSFER", "COD"].includes(paymentMethod)) {
-    return { success: false, error: "Metode pembayaran tidak valid" };
+  const previousOrders = await prisma.order.findMany({
+    where: { buyerId: session.user.id, checkoutToken },
+    select: { id: true },
+  });
+  if (previousOrders.length > 0) {
+    return { success: true, orderIds: previousOrders.map((order) => order.id) };
   }
 
   // Get all cart items for this user
@@ -42,7 +53,14 @@ export async function checkoutAction(
     where: { userId: session.user.id },
     include: {
       product: {
-        select: { id: true, storeId: true, stock: true, price: true, status: true },
+        select: {
+          id: true,
+          storeId: true,
+          stock: true,
+          price: true,
+          status: true,
+          store: { select: { userId: true } },
+        },
       },
     },
   });
@@ -58,6 +76,9 @@ export async function checkoutAction(
     }
     if (item.quantity > item.product.stock) {
       return { success: false, error: `Stok tidak mencukupi` };
+    }
+    if (item.product.store.userId === session.user.id) {
+      return { success: false, error: "Anda tidak dapat membeli produk dari toko sendiri" };
     }
   }
 
@@ -75,91 +96,102 @@ export async function checkoutAction(
 
   try {
     // Atomic: create all orders + payments + deduct stock + clear cart in one transaction
-    await prisma.$transaction(async (tx) => {
-      for (const [storeId, items] of storeGroups) {
-        const totalAmount = items.reduce(
-          (sum, item) => sum + Number(item.product.price) * item.quantity,
-          0,
-        );
+    await prisma.$transaction(
+      async (tx) => {
+        for (const [storeId, items] of storeGroups) {
+          const totalAmount = items.reduce(
+            (sum, item) => sum + Number(item.product.price) * item.quantity,
+            0,
+          );
 
-        // Create order
-        const order = await tx.order.create({
-          data: {
-            buyerId: session.user.id,
-            storeId,
-            status: paymentMethod === "COD" ? "DIPROSES" : "MENUNGGU_PEMBAYARAN",
-            paymentMethod: paymentMethod as "MANUAL_TRANSFER" | "COD",
-            deliveryMethod: deliveryMethod as "PICKUP_COD" | "MANUAL_DELIVERY",
-            totalAmount,
-            shippingCost: 0,
-            notes,
-            items: {
-              create: items.map((item) => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                priceAtPurchase: item.product.price,
-              })),
-            },
-          },
-        });
-
-        // Create payment record
-        await tx.payment.create({
-          data: {
-            orderId: order.id,
-            status: paymentMethod === "COD" ? "COD_RECEIVED" : "PENDING",
-            amount: totalAmount,
-          },
-        });
-
-        // Deduct stock for each product
-        for (const item of items) {
-          await tx.product.update({
-            where: { id: item.productId },
+          // Create order
+          const order = await tx.order.create({
             data: {
-              stock: { decrement: item.quantity },
+              buyerId: session.user.id,
+              checkoutToken,
+              storeId,
+              status: paymentMethod === "COD" ? "DIPROSES" : "MENUNGGU_PEMBAYARAN",
+              paymentMethod,
+              deliveryMethod,
+              totalAmount,
+              shippingCost: 0,
+              notes,
+              items: {
+                create: items.map((item) => ({
+                  productId: item.productId,
+                  quantity: item.quantity,
+                  priceAtPurchase: item.product.price,
+                })),
+              },
             },
           });
 
-          // Set status to OUT_OF_STOCK if stock reaches 0
-          const updated = await tx.product.findUnique({
-            where: { id: item.productId },
-            select: { stock: true },
+          // Create payment record
+          await tx.payment.create({
+            data: {
+              orderId: order.id,
+              status: paymentMethod === "COD" ? "COD_RECEIVED" : "PENDING",
+              amount: totalAmount,
+            },
           });
-          if (updated && updated.stock === 0) {
-            await tx.product.update({
-              where: { id: item.productId },
+
+          // Deduct stock for each product
+          for (const item of items) {
+            const stockUpdate = await tx.product.updateMany({
+              where: {
+                id: item.productId,
+                status: "ACTIVE",
+                stock: { gte: item.quantity },
+              },
+              data: {
+                stock: { decrement: item.quantity },
+              },
+            });
+            if (stockUpdate.count !== 1) {
+              throw new Error("Stok berubah saat checkout. Silakan tinjau keranjang kembali.");
+            }
+
+            await tx.product.updateMany({
+              where: { id: item.productId, stock: 0 },
               data: { status: "OUT_OF_STOCK" },
+            });
+          }
+
+          orderIds.push(order.id);
+
+          // Create notification for seller
+          const store = await tx.storeProfile.findUnique({
+            where: { id: storeId },
+            select: { userId: true },
+          });
+          if (store) {
+            await tx.notification.create({
+              data: {
+                userId: store.userId,
+                type: "NEW_ORDER",
+                title: `Pesanan baru #${order.id.slice(-8)}`,
+                payload: { orderId: order.id, totalAmount },
+                isRead: false,
+              },
             });
           }
         }
 
-        orderIds.push(order.id);
-
-        // Create notification for seller
-        const store = await tx.storeProfile.findUnique({
-          where: { id: storeId },
-          select: { userId: true },
+        // Clear cart
+        await tx.cartItem.deleteMany({
+          where: { userId: session.user.id },
         });
-        if (store) {
-          await tx.notification.create({
-            data: {
-              userId: store.userId,
-              type: "NEW_ORDER",
-              title: `Pesanan baru #${order.id.slice(-8)}`,
-              payload: { orderId: order.id, totalAmount },
-              isRead: false,
-            },
-          });
-        }
-      }
-
-      // Clear cart
-      await tx.cartItem.deleteMany({
-        where: { userId: session.user.id },
-      });
-    });
+      },
+      { isolationLevel: "Serializable" },
+    );
   } catch (error) {
+    const existingOrders = await prisma.order.findMany({
+      where: { buyerId: session.user.id, checkoutToken },
+      select: { id: true },
+    });
+    if (existingOrders.length > 0) {
+      return { success: true, orderIds: existingOrders.map((order) => order.id) };
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : "Gagal memproses checkout",

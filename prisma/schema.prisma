@@ -84,6 +84,7 @@ model User {
   avatarUrl         String?
   isVerifiedStudent Boolean             @default(false)
   verificationStatus VerificationStatus @default(NONE)
+  verificationObjectKey String?          @unique
   emailVerified     DateTime?
   phone             String?
   suspendedAt       DateTime?
@@ -98,6 +99,7 @@ model User {
   conversationsBuyer Conversation[]      @relation("ConversationBuyer")
   auditLogs         AuditLog[]
   messages          Message[]
+  passwordResetTokens PasswordResetToken[]
 
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -240,6 +242,7 @@ model Order {
   shippingCost   Decimal       @default(0) @db.Decimal(12, 2)
   notes          String?
   cancelReason   String?
+  checkoutToken  String
 
   items          OrderItem[]
   payment        Payment?
@@ -250,6 +253,7 @@ model Order {
   @@index([buyerId])
   @@index([storeId])
   @@index([status])
+  @@unique([buyerId, checkoutToken, storeId])
 }
 
 model OrderItem {
@@ -274,6 +278,7 @@ model Payment {
   order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   status          PaymentStatus  @default(PENDING)
   proofImageUrl   String?
+  proofObjectKey  String?        @unique
   verifiedById    String?
   verifiedAt      DateTime?
   gatewayReference String?
@@ -379,6 +384,28 @@ model AuditLog {
 
   @@index([actorId])
   @@index([action])
+}
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // ─── Voucher (Fase 3) ───

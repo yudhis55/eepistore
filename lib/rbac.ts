@@ -8,7 +8,7 @@ export type Role = "BUYER" | "SELLER" | "ADMIN";
  */
 export async function requireAuth() {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user || session.user.suspended) {
     throw new Error("Unauthorized");
   }
   return session;

@@ -17,7 +17,15 @@ const formatPrice = (price: number) =>
     minimumFractionDigits: 0,
   }).format(price);
 
-export function CheckoutForm({ groups, totalPrice }: { groups: CartGroup[]; totalPrice: number }) {
+export function CheckoutForm({
+  groups,
+  totalPrice,
+  checkoutToken,
+}: {
+  groups: CartGroup[];
+  totalPrice: number;
+  checkoutToken: string;
+}) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<CheckoutResult, FormData>(checkoutAction, {
     success: false,
@@ -33,6 +41,7 @@ export function CheckoutForm({ groups, totalPrice }: { groups: CartGroup[]; tota
 
   return (
     <form action={formAction} className="space-y-4 rounded-lg border border-border p-4">
+      <input type="hidden" name="checkoutToken" value={checkoutToken} />
       <h2 className="text-sm font-semibold">Detail Pengiriman & Pembayaran</h2>
 
       {/* Delivery method */}

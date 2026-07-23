@@ -4,6 +4,7 @@ import { getCart } from "@/features/cart/actions";
 import { CheckoutForm } from "@/components/checkout-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
+import { randomUUID } from "node:crypto";
 
 export const metadata: Metadata = { title: "Checkout — EEPISTORE" };
 
@@ -51,7 +52,7 @@ export default async function CheckoutPage() {
         {/* Checkout form */}
         <div className="lg:col-span-1">
           <div className="sticky top-20">
-            <CheckoutForm groups={groups} totalPrice={totalPrice} />
+            <CheckoutForm groups={groups} totalPrice={totalPrice} checkoutToken={randomUUID()} />
           </div>
         </div>
       </div>

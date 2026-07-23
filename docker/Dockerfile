@@ -1,5 +1,5 @@
 # ─── Stage 1: Dependencies ───
-FROM node:22-alpine AS deps
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json* .npmrc ./
@@ -9,7 +9,7 @@ FROM deps AS prod-deps
 RUN npm prune --omit=dev
 
 # ─── Stage 2: Builder ───
-FROM node:22-alpine AS builder
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -29,7 +29,7 @@ RUN DATABASE_URL="$BUILD_DATABASE_URL" npx prisma generate
 RUN DATABASE_URL="$BUILD_DATABASE_URL" AUTH_SECRET="build-time-dummy-not-used-at-runtime" npm run build
 
 # ─── Stage 3: Runner ───
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

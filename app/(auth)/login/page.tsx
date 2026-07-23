@@ -7,11 +7,12 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input, FormField } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { safeRelativeRedirect } from "@/lib/safe-redirect";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const callbackUrl = safeRelativeRedirect(searchParams.get("callbackUrl"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,6 +71,11 @@ function LoginForm() {
       <Button type="submit" loading={loading} className="w-full">
         Masuk
       </Button>
+      <div className="text-right">
+        <Link href="/forgot-password" className="text-sm text-brand-navy-700 hover:underline">
+          Lupa password?
+        </Link>
+      </div>
     </form>
   );
 }
