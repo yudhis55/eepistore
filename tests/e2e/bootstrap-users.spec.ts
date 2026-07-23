@@ -16,8 +16,8 @@ test("register isolated experiment accounts", async ({ browser }) => {
     await page.goto("/register");
     await page.getByLabel("Nama").fill(name);
     await page.getByLabel("Email").fill(required(emailVariable));
-    await page.getByLabel("Password", { exact: true }).fill(password);
-    await page.getByLabel("Konfirmasi Password").fill(password);
+    await page.locator('input[name="password"]').fill(password);
+    await page.locator('input[name="confirmPassword"]').fill(password);
     await page.getByRole("button", { name: "Daftar" }).click();
     await Promise.race([
       page.waitForURL(/\/$/),
