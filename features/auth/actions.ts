@@ -18,7 +18,7 @@ export async function registerAction(
 ): Promise<RegisterState> {
   const emailRaw = String(formData.get("email") ?? "");
 
-  if (!registerLimiter.check(emailRaw || "anon")) {
+  if (!(await registerLimiter.check(emailRaw || "anon"))) {
     return { error: "Terlalu banyak percobaan registrasi. Coba lagi nanti." };
   }
 

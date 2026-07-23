@@ -28,8 +28,12 @@ export function getS3Client(): S3Client {
   return client;
 }
 
-export function getBucketName(): string {
-  return process.env.S3_BUCKET ?? "eepistore";
+export function getPublicBucketName(): string {
+  return process.env.S3_PUBLIC_BUCKET ?? process.env.S3_BUCKET ?? "eepistore-public";
+}
+
+export function getPrivateBucketName(): string {
+  return process.env.S3_PRIVATE_BUCKET ?? process.env.S3_BUCKET ?? "eepistore-private";
 }
 
 /**
@@ -38,6 +42,6 @@ export function getBucketName(): string {
  */
 export async function verifyS3Connection(): Promise<void> {
   const s3 = getS3Client();
-  const bucket = getBucketName();
-  await s3.send(new HeadBucketCommand({ Bucket: bucket }));
+  const buckets = new Set([getPublicBucketName(), getPrivateBucketName()]);
+  await Promise.all([...buckets].map((Bucket) => s3.send(new HeadBucketCommand({ Bucket }))));
 }

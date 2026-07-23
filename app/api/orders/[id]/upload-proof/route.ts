@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { z } from "zod";
+import { parsePrivateObjectUrl } from "@/lib/private-object-access";
 
 const proofSchema = z.object({
   proofImageUrl: z.string().url(),
@@ -21,6 +22,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Input tidak valid" }, { status: 400 });
+  }
+
+  const proofObject = parsePrivateObjectUrl(parsed.data.proofImageUrl);
+  if (
+    !proofObject ||
+    proofObject.folder !== "payments" ||
+    proofObject.ownerId !== session.user.id
+  ) {
+    return NextResponse.json({ error: "Bukti pembayaran tidak valid" }, { status: 400 });
   }
 
   const order = await prisma.order.findFirst({
@@ -45,6 +55,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       where: { orderId },
       data: {
         proofImageUrl: parsed.data.proofImageUrl,
+        proofObjectKey: proofObject.key,
         status: "AWAITING_VERIFICATION",
       },
     }),

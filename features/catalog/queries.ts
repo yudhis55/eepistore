@@ -26,6 +26,7 @@ export async function getProducts(filter: ProductFilter = {}) {
 
   const where = {
     status: "ACTIVE" as ProductStatus,
+    store: { status: "APPROVED" as const },
     ...(categoryId ? { categoryId } : {}),
     ...(condition ? { condition } : {}),
     ...(minPrice !== undefined || maxPrice !== undefined
@@ -77,8 +78,8 @@ export async function getProducts(filter: ProductFilter = {}) {
 }
 
 export async function getProductById(id: string) {
-  return prisma.product.findUnique({
-    where: { id },
+  return prisma.product.findFirst({
+    where: { id, status: "ACTIVE", store: { status: "APPROVED" } },
     include: {
       images: { orderBy: { position: "asc" } },
       variants: true,
@@ -152,7 +153,7 @@ export async function getCategoriesTree() {
  */
 export async function getTrendingProducts(limit = 8) {
   const products = await prisma.product.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", store: { status: "APPROVED" } },
     include: {
       images: { orderBy: { position: "asc" }, take: 1 },
       store: { select: { id: true, storeName: true } },
@@ -171,7 +172,10 @@ export async function getTrendingProducts(limit = 8) {
  */
 export async function getRecentReviews(limit = 3) {
   return prisma.review.findMany({
-    where: { comment: { not: null } },
+    where: {
+      comment: { not: null },
+      product: { status: "ACTIVE", store: { status: "APPROVED" } },
+    },
     take: limit,
     orderBy: { createdAt: "desc" },
     include: {

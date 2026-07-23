@@ -3,6 +3,7 @@ import {
   canReadPrivateObject,
   objectUrlMatchesKey,
   parsePrivateObjectKey,
+  parsePrivateObjectUrl,
   type PrivateObjectLookup,
   type PrivateObjectSessionUser,
 } from "@/lib/private-object-access";
@@ -46,6 +47,18 @@ describe("private object access", () => {
       ),
     ).toBe(true);
     expect(objectUrlMatchesKey(key, key)).toBe(true);
+    expect(objectUrlMatchesKey(`https://evil.test/${key}`, key)).toBe(false);
+    expect(objectUrlMatchesKey(`${key}-suffix`, key)).toBe(false);
+  });
+
+  it("extracts only private application object URLs", () => {
+    const key = "payments/buyer-1/proof.png";
+    expect(
+      parsePrivateObjectUrl(
+        "https://app.example.test/api/uploads/private?key=payments%2Fbuyer-1%2Fproof.png",
+      ),
+    ).toMatchObject({ key, folder: "payments", ownerId: "buyer-1" });
+    expect(parsePrivateObjectUrl(`https://evil.test/${key}`)).toBeNull();
   });
 
   it("allows payment proof access to buyer, owning seller, and admin", async () => {

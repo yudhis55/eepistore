@@ -60,12 +60,20 @@ export function objectUrlMatchesKey(url: string | null | undefined, key: string)
 
   try {
     const parsed = new URL(url);
-    if (parsed.searchParams.get("key") === key) return true;
+    return parsed.pathname === "/api/uploads/private" && parsed.searchParams.get("key") === key;
   } catch {
-    // Stored values may be raw object keys during local/manual workflows.
+    return url === key;
   }
+}
 
-  return url.includes(encodeURIComponent(key)) || url.includes(key);
+export function parsePrivateObjectUrl(url: string): ParsedPrivateObjectKey | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname !== "/api/uploads/private") return null;
+    return parsePrivateObjectKey(parsed.searchParams.get("key") ?? "");
+  } catch {
+    return parsePrivateObjectKey(url);
+  }
 }
 
 export async function canReadPrivateObject(

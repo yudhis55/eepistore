@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, requireRole } from "@/lib/rbac";
 import { productSchema } from "@/lib/validators/catalog";
 import { revalidatePath } from "next/cache";
+import { isOwnedPublicMediaUrl } from "@/lib/storage";
 
 export type ProductActionState = {
   error?: string;
@@ -47,6 +48,9 @@ export async function createProductAction(
   }
 
   const data = parsed.data;
+  if (!data.images.every((url) => isOwnedPublicMediaUrl(url, "products", session.user.id))) {
+    return { error: "URL gambar produk tidak valid" };
+  }
 
   await prisma.product.create({
     data: {
@@ -124,39 +128,42 @@ export async function updateProductAction(
   }
 
   const data = parsed.data;
+  if (!data.images.every((url) => isOwnedPublicMediaUrl(url, "products", session.user.id))) {
+    return { error: "URL gambar produk tidak valid" };
+  }
 
-  // Delete old images and variants, then recreate
-  await prisma.productImage.deleteMany({ where: { productId } });
-  await prisma.productVariant.deleteMany({ where: { productId } });
-
-  await prisma.product.update({
-    where: { id: productId },
-    data: {
-      name: data.name,
-      description: data.description || null,
-      price: data.price,
-      stock: data.stock,
-      condition: data.condition,
-      status: data.status,
-      categoryId: data.categoryId || null,
-      images: {
-        create: data.images.map((url, index) => ({
-          imageUrl: url,
-          position: index,
-        })),
+  await prisma.$transaction(async (tx) => {
+    await tx.productImage.deleteMany({ where: { productId } });
+    await tx.productVariant.deleteMany({ where: { productId } });
+    await tx.product.update({
+      where: { id: productId },
+      data: {
+        name: data.name,
+        description: data.description || null,
+        price: data.price,
+        stock: data.stock,
+        condition: data.condition,
+        status: data.status,
+        categoryId: data.categoryId || null,
+        images: {
+          create: data.images.map((url, index) => ({
+            imageUrl: url,
+            position: index,
+          })),
+        },
+        variants:
+          data.variants && data.variants.length > 0
+            ? {
+                create: data.variants.map((v) => ({
+                  name: v.name,
+                  value: v.value,
+                  priceAdjustment: v.priceAdjustment,
+                  stock: v.stock,
+                })),
+              }
+            : undefined,
       },
-      variants:
-        data.variants && data.variants.length > 0
-          ? {
-              create: data.variants.map((v) => ({
-                name: v.name,
-                value: v.value,
-                priceAdjustment: v.priceAdjustment,
-                stock: v.stock,
-              })),
-            }
-          : undefined,
-    },
+    });
   });
 
   revalidatePath("/dashboard/products");

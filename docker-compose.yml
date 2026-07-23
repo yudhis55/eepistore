@@ -54,9 +54,11 @@ services:
         mc ready local 2>/dev/null && break;
         echo 'waiting for minio...'; sleep 1;
       done;
-      mc mb local/eepistore --ignore-existing;
-      mc anonymous set download local/eepistore;
-      echo 'MinIO bucket eepistore created + public-read';
+      mc mb local/eepistore-public --ignore-existing;
+      mc mb local/eepistore-private --ignore-existing;
+      mc anonymous set download local/eepistore-public;
+      mc anonymous set none local/eepistore-private;
+      echo 'MinIO public and private buckets created';
       "
     restart: "no"
 

@@ -3,11 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createPresignedDownloadUrl } from "@/lib/storage";
 import type { Role } from "@/lib/rbac";
-import {
-  canReadPrivateObject,
-  objectUrlMatchesKey,
-  parsePrivateObjectKey,
-} from "@/lib/private-object-access";
+import { canReadPrivateObject, parsePrivateObjectKey } from "@/lib/private-object-access";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
@@ -29,12 +25,7 @@ export async function GET(request: NextRequest) {
     {
       findPaymentAccessByKey: async (objectKey) => {
         const payment = await prisma.payment.findFirst({
-          where: {
-            OR: [
-              { proofImageUrl: { contains: encodeURIComponent(objectKey) } },
-              { proofImageUrl: { contains: objectKey } },
-            ],
-          },
+          where: { proofObjectKey: objectKey },
           select: {
             order: {
               select: {
@@ -53,23 +44,17 @@ export async function GET(request: NextRequest) {
           : null;
       },
       findVerificationAccessByKey: async (objectKey, ownerId) => {
-        const notifications = await prisma.notification.findMany({
+        const user = await prisma.user.findFirst({
           where: {
-            userId: ownerId,
-            type: "VERIFICATION_SUBMITTED",
+            id: ownerId,
+            verificationObjectKey: objectKey,
           },
           select: {
-            payload: true,
+            id: true,
           },
-          orderBy: { createdAt: "desc" },
         });
 
-        const match = notifications.find((notification) => {
-          const payload = notification.payload as { ktmImageUrl?: string } | null;
-          return objectUrlMatchesKey(payload?.ktmImageUrl, objectKey);
-        });
-
-        return match ? { userId: ownerId } : null;
+        return user ? { userId: user.id } : null;
       },
     },
   );

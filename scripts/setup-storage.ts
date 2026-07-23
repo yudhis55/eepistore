@@ -1,27 +1,15 @@
-/**
- * Set the MinIO/S3 bucket CORS policy so the browser can PUT uploads directly
- * (presigned-URL flow) from the dev origin. MinIO standalone doesn't implement
- * PutBucketCors via `mc cors`, so we use the AWS SDK directly.
- *
- * Run once after `dev:up`:  npm run storage:setup
- * Idempotent — safe to re-run.
- */
 import "dotenv/config";
-import { S3Client, PutBucketCorsCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
+import { HeadBucketCommand, PutBucketCorsCommand, S3Client } from "@aws-sdk/client-s3";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const endpoint = process.env.S3_ENDPOINT;
-const bucket = process.env.S3_BUCKET ?? "eepistore";
 const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === "true";
-
-// Dev origins that upload from the browser. Add prod origins here when shipping.
+const buckets = new Set([
+  process.env.S3_PUBLIC_BUCKET ?? process.env.S3_BUCKET ?? "eepistore-public",
+  process.env.S3_PRIVATE_BUCKET ?? process.env.S3_BUCKET ?? "eepistore-private",
+]);
 const allowedOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
 
-// On Windows + WSL, Node resolves `localhost` to IPv6 [::1] which is intercepted
-// by wslrelay and resets the connection. The browser (which PUTs to the presigned
-// URL from S3_ENDPOINT) handles `localhost` fine, but this host-side script must
-// use 127.0.0.1 to reach the MinIO container directly. Override only the local
-// host portion; leave prod endpoints untouched.
 const hostEndpoint = endpoint
   ? endpoint
       .replace(/\/\/localhost(:\d+)?/, "//127.0.0.1$1")
@@ -42,30 +30,21 @@ const s3 = new S3Client({
     : {}),
 });
 
-/** Wait for the bucket to exist (MinIO may still be starting after `up -d`). */
-async function waitForBucket(retries = 30): Promise<void> {
-  for (let i = 1; i <= retries; i++) {
+async function waitForBucket(bucket: string, retries = 30): Promise<void> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       await s3.send(new HeadBucketCommand({ Bucket: bucket }));
       return;
     } catch {
-      if (i === retries)
-        throw new Error(
-          `Bucket '${bucket}' not reachable after ${retries} attempts. Is 'docker compose up' running?`,
-        );
+      if (attempt === retries) {
+        throw new Error(`Bucket '${bucket}' not reachable after ${retries} attempts`);
+      }
       await sleep(1000);
     }
   }
 }
 
-async function main() {
-  await waitForBucket();
-  console.log(`✓ Bucket '${bucket}' reachable`);
-
-  // Set bucket CORS. MinIO modern removed the PutBucketCors bucket API
-  // ("functionality that is not implemented") and handles CORS at the server
-  // level via the MINIO_API_CORS_ALLOW_ORIGIN env var (see docker-compose).
-  // On real AWS S3 this API call succeeds. Treat "not implemented" as success.
+async function configureCors(bucket: string): Promise<void> {
   try {
     await s3.send(
       new PutBucketCorsCommand({
@@ -74,7 +53,7 @@ async function main() {
           CORSRules: [
             {
               AllowedOrigins: allowedOrigins,
-              AllowedMethods: ["GET", "PUT", "POST", "HEAD"],
+              AllowedMethods: ["GET", "PUT", "HEAD"],
               AllowedHeaders: ["*"],
               ExposeHeaders: ["ETag"],
               MaxAgeSeconds: 3600,
@@ -83,20 +62,22 @@ async function main() {
         },
       }),
     );
-    console.log(`✓ CORS set on '${bucket}' for origins: ${allowedOrigins.join(", ")}`);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (/not implemented/i.test(msg)) {
-      console.log(
-        `✓ CORS handled via MINIO_API_CORS_ALLOW_ORIGIN (MinIO server-level) for: ${allowedOrigins.join(", ")}`,
-      );
-    } else {
-      throw e;
-    }
+    console.log(`CORS set on '${bucket}'`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/not implemented/i.test(message)) throw error;
+    console.log(`CORS for '${bucket}' is handled by the MinIO server setting`);
   }
 }
 
-main().catch((e) => {
-  console.error("Setup failed:", e.message);
+async function main() {
+  for (const bucket of buckets) {
+    await waitForBucket(bucket);
+    await configureCors(bucket);
+  }
+}
+
+main().catch((error) => {
+  console.error("Setup failed:", error instanceof Error ? error.message : error);
   process.exit(1);
 });

@@ -375,6 +375,7 @@ async function main() {
       data: {
         buyerId,
         storeId: product.storeId,
+        checkoutToken: `seed-${productId}`,
         status: "SELESAI",
         paymentMethod: "MANUAL_TRANSFER",
         deliveryMethod: "PICKUP_COD",
