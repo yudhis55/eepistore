@@ -4,10 +4,11 @@ env:
       urls:
         - __TARGET_URL_JSON__
       includePaths:
-        - __TARGET_REGEX_JSON__
+        - __PUBLIC_ROOT_REGEX_JSON__
+        - __PUBLIC_CATALOG_REGEX_JSON__
+        - __PUBLIC_HEALTH_REGEX_JSON__
       excludePaths:
         - __STATE_CHANGING_REGEX_JSON__
-        - __AUTHENTICATED_PAGE_REGEX_JSON__
   parameters:
     failOnError: true
     failOnWarning: false

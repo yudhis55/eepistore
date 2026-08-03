@@ -1,0 +1,135 @@
+name: Controlled Security Fault Injection
+
+on:
+  workflow_dispatch:
+    inputs:
+      parent_commit:
+        description: Approved 40-character baseline app commit
+        required: true
+        type: string
+      fault_id:
+        description: Exactly one preregistered positive-control fault
+        required: true
+        type: choice
+        options: [FI-AUTH-01, FI-SCA-01, FI-IMG-01]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fault-${{ inputs.parent_commit }}-${{ inputs.fault_id }}
+  cancel-in-progress: false
+
+jobs:
+  controlled-fault:
+    name: Detect ${{ inputs.fault_id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Validate immutable parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ inputs.parent_commit }}" =~ ^[0-9a-f]{40}$ ]]
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.parent_commit }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: inputs.fault_id != 'FI-IMG-01'
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install baseline dependencies without mutation
+        if: inputs.fault_id == 'FI-AUTH-01'
+        run: npm ci
+
+      - name: Apply the single authorization mutation
+        if: inputs.fault_id == 'FI-AUTH-01'
+        run: node tests/fault-fixtures/auth/mutate-private-object-access.mjs
+
+      - name: Record ephemeral child lineage
+        id: lineage
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p fault-evidence
+          printf '%s\n' "${{ inputs.fault_id }}" > .fault-selection
+          git config user.name "Eepistore Fault Fixture"
+          git config user.email "fault-fixture@example.invalid"
+          git add .fault-selection
+          if ! git diff --quiet -- lib/private-object-access.ts; then
+            git add lib/private-object-access.ts
+          fi
+          PATCH_DIGEST="sha256:$(git diff --cached --binary | sha256sum | awk '{print $1}')"
+          if ! git diff --cached --quiet; then
+            git commit -m "test(fault): ${{ inputs.fault_id }} ephemeral mutation"
+          fi
+          MUTATED_COMMIT="$(git rev-parse HEAD)"
+          jq -n \
+            --arg faultId "${{ inputs.fault_id }}" \
+            --arg parentAppCommit "${{ inputs.parent_commit }}" \
+            --arg mutatedCommit "$MUTATED_COMMIT" \
+            --arg patchDigest "$PATCH_DIGEST" \
+            --arg workflowRunId "$GITHUB_RUN_ID" \
+            '{faultId:$faultId,repository:"app",parentAppCommit:$parentAppCommit,mutatedCommit:$mutatedCommit,patchDigest:$patchDigest,workflowRunId:$workflowRunId,publishAvailable:false,applyAvailable:false}' \
+            > fault-evidence/lineage.json
+
+      - name: Require the mapped authorization test to block delivery
+        if: inputs.fault_id == 'FI-AUTH-01'
+        shell: bash
+        run: |
+          set +e
+          npm test -- lib/private-object-access.test.ts > fault-evidence/control.log 2>&1
+          code=$?
+          set -e
+          test "$code" -ne 0
+          grep -q "seller that does not own" fault-evidence/control.log
+          jq -n '{faultId:"FI-AUTH-01",severity:"high",expectedControl:"private-object unit test",actualControl:"private-object unit test",detected:true,deliveryBlocked:true,runType:"fault",runStatus:"passed"}' > fault-evidence/result.json
+
+      - name: Run lockfile-only SCA positive control
+        if: inputs.fault_id == 'FI-SCA-01'
+        shell: bash
+        run: |
+          set +e
+          npm audit --package-lock-only --json --prefix tests/fault-fixtures/sca > fault-evidence/npm-audit.json
+          code=$?
+          set -e
+          jq -e '.metadata.vulnerabilities.high > 0 or .metadata.vulnerabilities.critical > 0' fault-evidence/npm-audit.json > /dev/null
+          test "$code" -ne 0
+          jq -n '{faultId:"FI-SCA-01",severity:"high",expectedControl:"npm audit",actualControl:"npm audit",detected:true,deliveryBlocked:true,runType:"fault",runStatus:"passed"}' > fault-evidence/result.json
+
+      - name: Build but never run the isolated image fixture
+        if: inputs.fault_id == 'FI-IMG-01'
+        run: docker build -t eepistore-fault-image -f tests/fault-fixtures/container/Dockerfile tests/fault-fixtures/container
+
+      - name: Require Trivy to detect the image positive control
+        if: inputs.fault_id == 'FI-IMG-01'
+        shell: bash
+        run: |
+          set +e
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/fault-evidence:/evidence" \
+            aquasec/trivy@sha256:e2b22eac59c02003d8749f5b8d9bd073b62e30fefaef5b7c8371204e0a4b0c08 \
+            image --format json --output /evidence/trivy.json --exit-code 1 --severity HIGH,CRITICAL eepistore-fault-image
+          code=$?
+          set -e
+          findings="$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' fault-evidence/trivy.json)"
+          if [ "$code" -eq 0 ] || [ "$findings" -eq 0 ]; then
+            jq -n '{faultId:"FI-IMG-01",severity:"high",expectedControl:"Trivy image scan",actualControl:"none",detected:false,deliveryBlocked:false,runType:"fault",runStatus:"invalid-fixture"}' > fault-evidence/result.json
+            exit 1
+          fi
+          jq -n '{faultId:"FI-IMG-01",severity:"high",expectedControl:"Trivy image scan",actualControl:"Trivy image scan",detected:true,deliveryBlocked:true,runType:"fault",runStatus:"passed"}' > fault-evidence/result.json
+
+      - name: Upload immutable fault evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fault-${{ inputs.fault_id }}-${{ github.run_id }}
+          path: fault-evidence
+          if-no-files-found: error
+          retention-days: 90

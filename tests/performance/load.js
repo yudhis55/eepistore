@@ -1,10 +1,16 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
 
-// Keep the performance trial below the production WAF limit; rate-limit
-// detection is recorded as a separate security-control experiment.
-const baselineVUs = Number.parseInt(__ENV.BASELINE_VUS || "2", 10);
-const peakVUs = Number.parseInt(__ENV.PEAK_VUS || "3", 10);
+const maxVUs = 30;
+const stageVUs = [
+  Number.parseInt(__ENV.BASELINE_VUS || "2", 10),
+  Number.parseInt(__ENV.STEP_1_VUS || "5", 10),
+  Number.parseInt(__ENV.STEP_2_VUS || "10", 10),
+  Number.parseInt(__ENV.STEP_3_VUS || "20", 10),
+];
+if (stageVUs.some((value) => !Number.isInteger(value) || value < 0 || value > maxVUs)) {
+  throw new Error(`Every load stage must be an integer between 0 and ${maxVUs} VUs`);
+}
 
 export const options = {
   scenarios: {
@@ -12,11 +18,12 @@ export const options = {
       executor: "ramping-vus",
       startVUs: 0,
       stages: [
-        { duration: __ENV.WARMUP_DURATION || "1m", target: baselineVUs },
-        { duration: __ENV.STAGE_DURATION || "2m", target: baselineVUs },
-        { duration: __ENV.STAGE_DURATION || "2m", target: peakVUs },
-        { duration: __ENV.STAGE_DURATION || "2m", target: peakVUs },
-        { duration: __ENV.RECOVERY_DURATION || "2m", target: 0 },
+        { duration: __ENV.WARMUP_DURATION || "3m", target: stageVUs[0] },
+        { duration: __ENV.BASELINE_DURATION || "5m", target: stageVUs[0] },
+        { duration: __ENV.STEP_1_DURATION || "5m", target: stageVUs[1] },
+        { duration: __ENV.STEP_2_DURATION || "7m", target: stageVUs[2] },
+        { duration: __ENV.STEP_3_DURATION || "10m", target: stageVUs[3] },
+        { duration: __ENV.RECOVERY_DURATION || "1m", target: 0 },
       ],
       gracefulRampDown: "30s",
     },

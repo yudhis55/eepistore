@@ -4,6 +4,7 @@ const accounts = [
   ["EXPERIMENT_BUYER_EMAIL", "Experiment Buyer"],
   ["EXPERIMENT_OTHER_BUYER_EMAIL", "Experiment Other Buyer"],
   ["EXPERIMENT_SELLER_EMAIL", "Experiment Seller"],
+  ["EXPERIMENT_OTHER_SELLER_EMAIL", "Experiment Other Seller"],
   ["EXPERIMENT_ADMIN_EMAIL", "Experiment Admin"],
 ] as const;
 

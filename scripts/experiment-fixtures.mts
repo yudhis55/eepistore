@@ -7,6 +7,7 @@ type FixtureConfig = {
   buyerEmail: string;
   otherBuyerEmail: string;
   sellerEmail: string;
+  otherSellerEmail: string;
   adminEmail: string;
 };
 
@@ -48,6 +49,7 @@ function readConfig(): FixtureConfig {
     buyerEmail: required("EXPERIMENT_BUYER_EMAIL"),
     otherBuyerEmail: required("EXPERIMENT_OTHER_BUYER_EMAIL"),
     sellerEmail: required("EXPERIMENT_SELLER_EMAIL"),
+    otherSellerEmail: required("EXPERIMENT_OTHER_SELLER_EMAIL"),
     adminEmail: required("EXPERIMENT_ADMIN_EMAIL"),
   };
 
@@ -55,6 +57,7 @@ function readConfig(): FixtureConfig {
     config.buyerEmail,
     config.otherBuyerEmail,
     config.sellerEmail,
+    config.otherSellerEmail,
     config.adminEmail,
   ]) {
     if (!email.includes(experimentId) || !email.endsWith("@example.invalid")) {
@@ -76,18 +79,25 @@ async function setup(prisma: PrismaClient, input: FixtureConfig) {
     const users = await tx.user.findMany({
       where: {
         email: {
-          in: [input.buyerEmail, input.otherBuyerEmail, input.sellerEmail, input.adminEmail],
+          in: [
+            input.buyerEmail,
+            input.otherBuyerEmail,
+            input.sellerEmail,
+            input.otherSellerEmail,
+            input.adminEmail,
+          ],
         },
       },
     });
-    if (users.length !== 4) {
-      throw new Error(`Expected four registered users, found ${users.length}`);
+    if (users.length !== 5) {
+      throw new Error(`Expected five registered users, found ${users.length}`);
     }
 
     const byEmail = new Map(users.map((user) => [user.email, user]));
     const buyer = byEmail.get(input.buyerEmail)!;
     const otherBuyer = byEmail.get(input.otherBuyerEmail)!;
     const seller = byEmail.get(input.sellerEmail)!;
+    const otherSeller = byEmail.get(input.otherSellerEmail)!;
     const admin = byEmail.get(input.adminEmail)!;
 
     await tx.user.update({
@@ -100,6 +110,15 @@ async function setup(prisma: PrismaClient, input: FixtureConfig) {
     });
     await tx.user.update({
       where: { id: seller.id },
+      data: {
+        role: "SELLER",
+        emailVerified: new Date(),
+        isVerifiedStudent: true,
+        verificationStatus: "APPROVED",
+      },
+    });
+    await tx.user.update({
+      where: { id: otherSeller.id },
       data: {
         role: "SELLER",
         emailVerified: new Date(),
@@ -199,6 +218,7 @@ async function setup(prisma: PrismaClient, input: FixtureConfig) {
         buyerId: buyer.id,
         otherBuyerId: otherBuyer.id,
         sellerId: seller.id,
+        otherSellerId: otherSeller.id,
         adminId: admin.id,
       },
       storeId: store.id,
@@ -214,14 +234,39 @@ async function cleanup(prisma: PrismaClient, input: FixtureConfig) {
     const users = await tx.user.findMany({
       where: {
         email: {
-          in: [input.buyerEmail, input.otherBuyerEmail, input.sellerEmail, input.adminEmail],
+          in: [
+            input.buyerEmail,
+            input.otherBuyerEmail,
+            input.sellerEmail,
+            input.otherSellerEmail,
+            input.adminEmail,
+          ],
         },
       },
       include: { storeProfile: true },
     });
     const userIds = users.map((user) => user.id);
     const storeIds = users.flatMap((user) => (user.storeProfile ? [user.storeProfile.id] : []));
+    const payments = await tx.payment.findMany({
+      where: {
+        order: { OR: [{ buyerId: { in: userIds } }, { storeId: { in: storeIds } }] },
+      },
+      select: { id: true },
+    });
+    const paymentIds = payments.map((payment) => payment.id);
+    const emails = [
+      input.buyerEmail,
+      input.otherBuyerEmail,
+      input.sellerEmail,
+      input.otherSellerEmail,
+      input.adminEmail,
+    ].map((email) => email.toLowerCase());
+    const rateLimitKeys = [
+      ...emails.flatMap((email) => [`register:${email}`, `login:${email}`]),
+      ...userIds.flatMap((id) => [`upload:${id}`, `checkout:${id}`, `password-reset:${id}`]),
+    ];
 
+    await tx.rateLimitBucket.deleteMany({ where: { key: { in: rateLimitKeys } } });
     await tx.message.deleteMany({ where: { senderId: { in: userIds } } });
     await tx.conversation.deleteMany({
       where: {
@@ -237,18 +282,25 @@ async function cleanup(prisma: PrismaClient, input: FixtureConfig) {
     await tx.cartItem.deleteMany({ where: { userId: { in: userIds } } });
     await tx.user.deleteMany({ where: { id: { in: userIds } } });
 
-    const [remainingUsers, remainingStores, remainingOrders, remainingProducts] = await Promise.all(
-      [
-        tx.user.count({ where: { id: { in: userIds } } }),
-        tx.storeProfile.count({ where: { id: { in: storeIds } } }),
-        tx.order.count({
-          where: {
-            OR: [{ buyerId: { in: userIds } }, { storeId: { in: storeIds } }],
-          },
-        }),
-        tx.product.count({ where: { storeId: { in: storeIds } } }),
-      ],
-    );
+    const [
+      remainingUsers,
+      remainingStores,
+      remainingOrders,
+      remainingProducts,
+      remainingPayments,
+      remainingRateLimitBuckets,
+    ] = await Promise.all([
+      tx.user.count({ where: { id: { in: userIds } } }),
+      tx.storeProfile.count({ where: { id: { in: storeIds } } }),
+      tx.order.count({
+        where: {
+          OR: [{ buyerId: { in: userIds } }, { storeId: { in: storeIds } }],
+        },
+      }),
+      tx.product.count({ where: { storeId: { in: storeIds } } }),
+      tx.payment.count({ where: { id: { in: paymentIds } } }),
+      tx.rateLimitBucket.count({ where: { key: { in: rateLimitKeys } } }),
+    ]);
 
     return {
       experimentId: input.experimentId,
@@ -258,6 +310,8 @@ async function cleanup(prisma: PrismaClient, input: FixtureConfig) {
       remainingStores,
       remainingOrders,
       remainingProducts,
+      remainingPayments,
+      remainingRateLimitBuckets,
     };
   });
 }
