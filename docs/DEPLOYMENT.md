@@ -36,8 +36,9 @@ credentials must not be provided in ECS; S3 access must come from the task role.
 
 ## Pre-Deployment Steps
 
-1. Ensure ECR repository `eepistore-repo` exists. After a full Terraform
-   destroy, infra must create ECR again before this app can publish a new image.
+1. Ensure Terraform root `bootstrap/ecr` owns repository `eepistore-repo`.
+   Workload destroy intentionally retains this repository across both research
+   cycles so the same digest can be deployed again.
 2. Publish the scanned Docker image from GitHub Actions and retain its digest,
    SBOM, and provenance attestation.
 3. Pass the resulting immutable digest URI to infra as `TF_VAR_APP_IMAGE_URI`.
@@ -51,7 +52,7 @@ credentials must not be provided in ECS; S3 access must come from the task role.
 - [ ] HTTPS enabled with ACM and ALB TLS listener.
 - [ ] HTTP redirects to HTTPS.
 - [ ] WAF attached to ALB.
-- [ ] App image uses immutable commit SHA.
+- [ ] App image uses the exact immutable ECR digest frozen for the campaign.
 - [ ] ECS task runs as non-root and uses read-only root filesystem with `/tmp`
       tmpfs.
 - [ ] `/api/health` responds 200 for ALB liveness.
@@ -75,9 +76,10 @@ credentials must not be provided in ECS; S3 access must come from the task role.
 5. Capture CloudWatch and AWS resource evidence.
 6. Destroy the stack after evidence is safely captured to control AWS cost.
 
-Runtime evidence is orchestrated by the infra repository workflow
-`Final Experiment Evidence`. The application repository owns source quality,
-security scanning, and immutable image publication; it does not own Terraform,
+Runtime evidence is orchestrated by the infra repository workflows `Research
+Campaign` and `Aggregate Research Campaign Evidence`. The application
+repository owns source quality, security scanning, controlled non-published
+fault fixtures, and immutable image publication; it does not own Terraform,
 ECS deployment, or the final runtime experiment.
 
 ## Current Evidence Status
@@ -89,9 +91,9 @@ ECS deployment, or the final runtime experiment.
   this document.
 - Terraform apply baseline succeeded once with strict readiness checks.
 - The AWS stack has been destroyed for cost control.
-- Playwright, bounded ZAP, three k6 trials, CloudWatch collection, canonical
-  aggregation, and cleanup are implemented but still require live evidence
-  after a controlled apply.
+- Playwright, bounded ZAP, bounded WAF validation, network isolation, three k6
+  trials, CloudWatch collection, canonical schema `2.0.0`, and cleanup are
+  implemented locally but still require CI and live campaign evidence.
 
 ## Scaling Notes
 

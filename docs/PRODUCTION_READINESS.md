@@ -66,12 +66,12 @@ Pipeline harus menyimpan:
 
 ## Current Evidence Status
 
-- Image publish run `29983090390` dan digest `sha256:46834d...` merupakan
-  baseline sebelum utility eksperimen ditambahkan. Image harus dipublish ulang
-  dari commit aplikasi terbaru.
-- Terraform apply baseline pernah berhasil dan readiness JSON sudah valid.
-- Stack AWS sudah di-destroy untuk hemat biaya, jadi evidence runtime final
-  harus diambil ulang saat stack dihidupkan kembali.
-- Workflow final di repository infra sudah disiapkan untuk Playwright,
-  bounded ZAP, tiga trial k6, CloudWatch, dan cleanup. Hasilnya belum boleh
-  diklaim final sampai artifact canonical berstatus `final`.
+- Baseline historis membuktikan image publish, apply, readiness, runtime test,
+  canonical aggregation, dan destroy pernah berjalan, tetapi tidak memenuhi
+  kontrak campaign `2.0.0` yang baru.
+- Source terbaru menambahkan fixture terisolasi, bounded ZAP allowlist, WAF
+  rate validation, network isolation, serta tiga trial scale-out. Seluruhnya
+  harus lulus CI dan dipublish ulang sebagai digest baru dari `main`.
+- Stack workload sedang tidak aktif untuk mengendalikan biaya. Hasil baru hanya
+  boleh disebut final setelah dua clean cycle, runtime campaign, cleanup,
+  destroy, schema validation, dan archive checksum lulus.

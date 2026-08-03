@@ -18,7 +18,12 @@ test("role-aware functional and storage checks", async ({ browser, baseURL }) =>
   const buyer = await authenticated(browser, required("EXPERIMENT_BUYER_EMAIL"));
   const otherBuyer = await authenticated(browser, required("EXPERIMENT_OTHER_BUYER_EMAIL"));
   const seller = await authenticated(browser, required("EXPERIMENT_SELLER_EMAIL"));
+  const otherSeller = await authenticated(browser, required("EXPERIMENT_OTHER_SELLER_EMAIL"));
   const admin = await authenticated(browser, required("EXPERIMENT_ADMIN_EMAIL"));
+
+  const anonymous = await browser.newContext();
+  await expectStatus(anonymous, "/api/uploads/private?key=payments/unknown/proof.png", 401);
+  await expectStatus(anonymous, "/admin", 307);
 
   await expectStatus(buyer, "/orders", 200);
   await expectStatus(seller, "/dashboard", 200);
@@ -55,6 +60,18 @@ test("role-aware functional and storage checks", async ({ browser, baseURL }) =>
   }
   const denied = await otherBuyer.request.get(privateObject.objectUrl, { maxRedirects: 0 });
   expect(denied.status()).toBe(403);
+  const wrongSeller = await otherSeller.request.get(privateObject.objectUrl, { maxRedirects: 0 });
+  expect(wrongSeller.status()).toBe(403);
+  const missingRecord = await admin.request.get(
+    "/api/uploads/private?key=payments/unknown/missing.png",
+    { maxRedirects: 0 },
+  );
+  expect(missingRecord.status()).toBe(403);
+
+  await expectPresignStatus(buyer, { folder: "products" }, 403);
+  await expectPresignStatus(seller, { folder: "unsupported" }, 403);
+  await expectPresignStatus(seller, { contentType: "text/html" }, 400);
+  await expectPresignStatus(seller, { fileSize: 5 * 1024 * 1024 + 1 }, 400);
   const traversal = await buyer.request.get(
     `${baseURL}/api/uploads/private?key=..%2Fpayments%2Finvalid.png`,
     { maxRedirects: 0 },
@@ -62,7 +79,14 @@ test("role-aware functional and storage checks", async ({ browser, baseURL }) =>
   // WAF blocks traversal before the app-level key validator can return 400.
   expect(traversal.status()).toBe(403);
 
-  await Promise.all([buyer.close(), otherBuyer.close(), seller.close(), admin.close()]);
+  await Promise.all([
+    anonymous.close(),
+    buyer.close(),
+    otherBuyer.close(),
+    seller.close(),
+    otherSeller.close(),
+    admin.close(),
+  ]);
 });
 
 async function authenticated(browser: Browser, email: string): Promise<BrowserContext> {
@@ -74,6 +98,23 @@ async function authenticated(browser: Browser, email: string): Promise<BrowserCo
   await page.getByRole("button", { name: "Masuk" }).click();
   await expect(page).toHaveURL(/\/$/);
   return context;
+}
+
+async function expectPresignStatus(
+  context: BrowserContext,
+  overrides: Record<string, unknown>,
+  status: number,
+) {
+  const response = await context.request.post("/api/uploads/presign", {
+    data: {
+      filename: "experiment-policy.png",
+      contentType: "image/png",
+      fileSize: png.byteLength,
+      folder: "products",
+      ...overrides,
+    },
+  });
+  expect(response.status()).toBe(status);
 }
 
 async function upload(context: BrowserContext, folder: "products" | "payments", filename: string) {
