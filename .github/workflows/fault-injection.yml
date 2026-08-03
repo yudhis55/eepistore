@@ -51,6 +51,20 @@ jobs:
         if: inputs.fault_id == 'FI-AUTH-01'
         run: node tests/fault-fixtures/auth/mutate-private-object-access.mjs
 
+      - name: Create the ephemeral SCA positive control
+        if: inputs.fault_id == 'FI-SCA-01'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .fault-runtime/sca
+          printf '%s\n' \
+            '{"name":"eepistore-sca-positive-control","version":"1.0.0","private":true,"dependencies":{"lodash":"4.17.20"}}' \
+            > .fault-runtime/sca/package.json
+          npm install \
+            --package-lock-only \
+            --ignore-scripts \
+            --prefix .fault-runtime/sca
+
       - name: Record ephemeral child lineage
         id: lineage
         shell: bash
@@ -63,6 +77,9 @@ jobs:
           git add .fault-selection
           if ! git diff --quiet -- lib/private-object-access.ts; then
             git add lib/private-object-access.ts
+          fi
+          if [ -d .fault-runtime/sca ]; then
+            git add -f .fault-runtime/sca/package.json .fault-runtime/sca/package-lock.json
           fi
           PATCH_DIGEST="sha256:$(git diff --cached --binary | sha256sum | awk '{print $1}')"
           if ! git diff --cached --quiet; then
@@ -95,7 +112,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          npm audit --package-lock-only --json --prefix tests/fault-fixtures/sca > fault-evidence/npm-audit.json
+          npm audit --package-lock-only --json --prefix .fault-runtime/sca > fault-evidence/npm-audit.json
           code=$?
           set -e
           jq -e '.metadata.vulnerabilities.high > 0 or .metadata.vulnerabilities.critical > 0' fault-evidence/npm-audit.json > /dev/null
