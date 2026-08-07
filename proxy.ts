@@ -20,7 +20,21 @@ export default auth((request) => {
   // Check auth for protected routes
   const session = request.auth;
 
-  if (!session?.user || session.user.suspended) {
+  if (!session?.user) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (session.user.suspended) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Account suspended" }, { status: 403 });
+    }
+
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
